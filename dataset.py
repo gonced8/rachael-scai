@@ -13,13 +13,14 @@ import re
 # Other Modules
 import numpy as np
 import pandas as pd
+from torch.utils.data import Dataset, DataLoader
 
 # Custom Modules
 
 # Global Variables
-context_token = "<context>"
+# context_token = "<context>"
 # history_token = "<history>"
-question_token = "<question>"
+# question_token = "<question>"
 
 
 def process_data(data):
@@ -29,8 +30,6 @@ def process_data(data):
         context = sample["story"]
         questions = sample["questions"]
         answers = sample["answers"]
-
-        # history = ""
 
         for question, answer in zip(questions, answers):
             if question["turn_id"] != answer["turn_id"]:
@@ -43,14 +42,10 @@ def process_data(data):
 
             dataset.append(
                 {
-                    "src": context_token + context
-                    # + history_token + history
-                    + question_token + question,
+                    "src": question + "\n" + context,
                     "tgt": answer,
                 }
             )
-
-            # history += question
 
     return dataset
 
@@ -68,6 +63,18 @@ def save_dataset(dataset, path):
     with open(path, "w") as f:
         json.dump(dataset, f, indent=4, separators=None)
     return
+
+
+class CoqaDataset(Dataset):
+    def __init__(self, filename):
+        with open(filename, "r") as f:
+            self.data = json.load(f)
+
+    def __len__(self):
+        return len(data)
+
+    def __getitem__(self, idx):
+        return data[idx]["src"], data[idx]["tgt"]
 
 
 if __name__ == "__main__":
