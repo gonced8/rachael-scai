@@ -12,7 +12,6 @@ import re
 
 # Other Modules
 import numpy as np
-import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 
 # Custom Modules
@@ -65,16 +64,21 @@ def save_dataset(dataset, path):
     return
 
 
+def read_json(filename):
+    with open(filename, "r") as f:
+        return json.load(f)
+
+
 class CoqaDataset(Dataset):
     def __init__(self, filename):
         with open(filename, "r") as f:
             self.data = json.load(f)
 
     def __len__(self):
-        return len(data)
+        return len(self.data)
 
     def __getitem__(self, idx):
-        return data[idx]["src"], data[idx]["tgt"]
+        return self.data[idx]["src"], self.data[idx]["tgt"]
 
 
 if __name__ == "__main__":
@@ -86,7 +90,7 @@ if __name__ == "__main__":
         for filename in filenames:
             if ".json" in filename:
                 # Read data
-                data = pd.read_json(
+                data = read_json(
                     os.path.join(dirpath, filename),
                 )
 
