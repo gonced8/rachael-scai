@@ -4,14 +4,39 @@ import os
 import requests
 
 import torch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader  # , TensorDataset
 
 from transformers import PreTrainedTokenizer
 
 import pytorch_lightning as pl
 
 
-class DataModule(pl.LightningDataModule):
+class CoQA(pl.LightningDataModule):
+    class CoQADataset(torch.utils.data.Dataset):
+        def __init__(self, src, tgt, vocab_size=None):
+            if vocab_size is not None:
+                int_type = get_int_type(vocab_size)
+                self.input_ids = src.input_ids.type(int_type)
+                self.decoder_input_ids = tgt.input_ids.type(int_type)
+            else:
+                self.input_ids = src.input_ids
+                self.decoder_input_ids = tgt.input_ids
+
+            self.attention_mask = src.attention_mask.type(torch.bool)
+            self.decoder_attention_mask = tgt.attention_mask.type(torch.bool)
+
+        def __getitem__(self, idx):
+            item = {
+                "input_ids": self.input_ids[idx],
+                "decoder_input_ids": self.decoder_input_ids[idx],
+                "attention_mask": self.attention_mask[idx],
+                "decoder_attention_mask": self.decoder_attention_mask[idx],
+            }
+            return item
+
+        def __len__(self):
+            return len(self.input_ids)
+
     def __init__(self, config: dict, tokenizer: PreTrainedTokenizer):
         super().__init__()
         self.config = config
@@ -38,7 +63,7 @@ class DataModule(pl.LightningDataModule):
 
             if os.path.isfile(tokenized_path):
                 print(f"Found {dataset_path} tokenized. Loading from {tokenized_path}")
-                tensor_dataset = torch.load(tokenized_path)
+                dataset = torch.load(tokenized_path)
             else:
                 print(f"Tokenizing {dataset_path}. This might take a while...")
 
@@ -50,43 +75,59 @@ class DataModule(pl.LightningDataModule):
                     padding="longest",
                     truncation=True,
                     max_length=int(self.config["Model"]["max_input_length"]),
+                    return_attention_mask=True,
                     return_tensors="pt",
-                )["input_ids"]
+                )
+
+                print("Source shape", tokenized["src"].input_ids.size())
 
                 tokenized["tgt"] = self.tokenizer(
                     dataset["tgt"],
                     padding="longest",
                     truncation=True,
                     max_length=int(self.config["Model"]["max_output_length"]),
+                    return_attention_mask=True,
                     return_tensors="pt",
-                )["input_ids"]
-
-                print(
-                    tokenized["src"].size(),
-                    tokenized["tgt"].size(),
                 )
 
-                tensor_dataset = TensorDataset(tokenized["src"], tokenized["tgt"])
+                print("Target shape", tokenized["tgt"].input_ids.size())
 
-                torch.save(tensor_dataset, tokenized_path)
+                dataset = self.CoQADataset(
+                    tokenized["src"],
+                    tokenized["tgt"],
+                    vocab_size=self.tokenizer.vocab_size,
+                )
+
+                torch.save(dataset, tokenized_path)
                 print(f"Saved tokenized dataset to {tokenized_path}")
 
             if mode == "train":
-                self.train_dataset = tensor_dataset
+                self.train_dataset = dataset
             elif mode == "validate":
-                self.val_dataset = tensor_dataset
+                self.val_dataset = dataset
             else:
                 print("Unrecognized mode. Only supports train and validate.")
 
     def train_dataloader(self):
         return DataLoader(
-            self.train_dataset, batch_size=self.config["DataModule"]["batch_size"]
+            self.train_dataset,
+            batch_size=int(self.config["DataModule"]["batch_size"]),
+            shuffle=True,
+            num_workers=os.cpu_count(),
+            pin_memory=bool(torch.cuda.device_count()),
         )
 
     def val_dataloader(self):
         return DataLoader(
-            self.val_dataset, batch_size=self.config["DataModule"]["batch_size"]
+            self.val_dataset,
+            batch_size=int(self.config["DataModule"]["batch_size"]),
+            shuffle=False,
+            num_workers=os.cpu_count(),
+            pin_memory=bool(torch.cuda.device_count()),
         )
+
+    def test_dataloader(self):
+        return self.val_dataloader()
 
     @staticmethod
     def get_tokenized_path(filename):
@@ -169,3 +210,17 @@ def hash_file(filename):
     # hashes the data, and returns the output
     # in hexadecimal format
     return sha256.hexdigest()
+
+
+def get_int_type(vocab_size):
+    if vocab_size <= 2 ** 8:
+        return "torch.uint8"
+    else:
+        for int_size, int_type in {
+            16: torch.int16,
+            32: torch.int32,
+            64: torch.int64,
+        }.items():
+            if vocab_size < 2 ** (int_size - 1):
+                return int_type
+        return torch.int64
