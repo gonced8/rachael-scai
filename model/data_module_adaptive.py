@@ -6,7 +6,7 @@ import requests
 from tqdm.contrib.concurrent import process_map
 
 import torch
-from torch.utils.data import DataLoader  # , TensorDataset
+from torch.utils.data import DataLoader
 
 from transformers import PreTrainedTokenizer
 
@@ -15,21 +15,46 @@ import pytorch_lightning as pl
 
 class CoQA(pl.LightningDataModule):
     class CoQADataset(torch.utils.data.Dataset):
-        def __init__(self, src=None, tgt=None, vocab_size=None, filename=None):
+        def __init__(
+            self,
+            src=None,
+            tgt=None,
+            vocab_size=None,
+            max_input_length=None,
+            max_output_length=None,
+            filename=None,
+        ):
             if filename is not None:
-                self.uncompressed_type = self.compressed_type = None
-                self.input_ids = self.labels = None
-                self.load(filename)
+                self.uncompressed_type, self.input_ids, self.labels = torch.load(
+                    filename
+                )
+                self.compressed_type = self.input_ids[0].type()
+                self.labels = type_list(self.labels, self.uncompressed_type)
             else:
-                self.uncompressed_type = src.type()
+                self.uncompressed_type = torch.long
 
                 if vocab_size is not None:
                     self.compressed_type = get_int_type(vocab_size)
                 else:
                     self.compressed_type = self.uncompressed_type
 
-                self.input_ids = src.type(self.compressed_type)
-                self.labels = tgt
+                self.input_ids = [
+                    torch.tensor(sample, dtype=self.compressed_type) for sample in src
+                ]
+                self.labels = [
+                    torch.tensor(sample, dtype=self.uncompressed_type) for sample in tgt
+                ]
+
+            if max_input_length is not None:
+                self.input_ids = [
+                    sample[: min(len(sample), max_input_length)]
+                    for sample in self.input_ids
+                ]
+            if max_output_length is not None:
+                self.labels = [
+                    sample[: min(len(sample), max_output_length)]
+                    for sample in self.labels
+                ]
 
         def __getitem__(self, idx):
             item = {"input_ids": self.input_ids[idx], "labels": self.labels[idx]}
@@ -38,17 +63,12 @@ class CoQA(pl.LightningDataModule):
         def __len__(self):
             return len(self.input_ids)
 
-        def load(self, filename):
-            self.uncompressed_type, self.input_ids, self.labels = torch.load(filename)
-            self.compressed_type = self.input_ids.type()
-            self.labels = self.labels.type(self.uncompressed_type)
-
         def save(self, filename):
             torch.save(
                 (
                     self.uncompressed_type,
                     self.input_ids,
-                    self.labels.type(self.compressed_type),
+                    type_list(self.labels, self.compressed_type),
                 ),
                 filename,
             )
@@ -79,37 +99,29 @@ class CoQA(pl.LightningDataModule):
 
             if os.path.isfile(tokenized_path):
                 print(f"Found {dataset_path} tokenized. Loading from {tokenized_path}")
-                dataset = self.CoQADataset(filename=tokenized_path)
+                dataset = self.CoQADataset(
+                    max_input_length=int(self.config["Model"]["max_input_length"]),
+                    max_output_length=int(self.config["Model"]["max_output_length"]),
+                    filename=tokenized_path,
+                )
             else:
                 print(f"Tokenizing {dataset_path}. This might take a while...")
 
                 dataset = self.process_data(dataset_path)
                 tokenized = {}
 
-                tokenized["src"] = self.tokenizer(
-                    dataset["src"],
-                    padding="longest",
-                    truncation=True,
-                    max_length=int(self.config["Model"]["max_input_length"]),
-                    return_tensors="pt",
-                ).input_ids
-
+                tokenized["src"] = self.tokenizer(dataset["src"])["input_ids"]
                 print(f"Source: {len(tokenized['src'])} samples")
 
-                tokenized["tgt"] = self.tokenizer(
-                    dataset["tgt"],
-                    padding="longest",
-                    truncation=True,
-                    max_length=int(self.config["Model"]["max_output_length"]),
-                    return_tensors="pt",
-                ).input_ids
-
+                tokenized["tgt"] = self.tokenizer(dataset["tgt"])["input_ids"]
                 print(f"Target: {len(tokenized['tgt'])} samples")
 
                 dataset = self.CoQADataset(
                     tokenized["src"],
                     tokenized["tgt"],
                     vocab_size=self.tokenizer.vocab_size,
+                    max_input_length=int(self.config["Model"]["max_input_length"]),
+                    max_output_length=int(self.config["Model"]["max_output_length"]),
                 )
 
                 dataset.save(tokenized_path)
@@ -128,6 +140,7 @@ class CoQA(pl.LightningDataModule):
             batch_size=int(self.config["DataModule"]["batch_size"]),
             shuffle=True,
             num_workers=os.cpu_count(),
+            collate_fn=AdaptiveBatch(self.tokenizer.pad_token_id),
             pin_memory=bool(torch.cuda.device_count()),
         )
 
@@ -137,6 +150,7 @@ class CoQA(pl.LightningDataModule):
             batch_size=int(self.config["DataModule"]["batch_size"]),
             shuffle=False,
             num_workers=os.cpu_count(),
+            collate_fn=AdaptiveBatch(self.tokenizer.pad_token_id),
             pin_memory=bool(torch.cuda.device_count()),
         )
 
@@ -228,7 +242,7 @@ def hash_file(filename):
 
 def get_int_type(vocab_size):
     if vocab_size <= 2 ** 8:
-        return "torch.uint8"
+        return torch.uint8
     else:
         for int_size, int_type in {
             16: torch.int16,
@@ -238,3 +252,22 @@ def get_int_type(vocab_size):
             if vocab_size < 2 ** (int_size - 1):
                 return int_type
         return torch.int64
+
+
+def type_list(list_tensors, new_type):
+    return [x.type(new_type) for x in list_tensors]
+
+
+class AdaptiveBatch:
+    def __init__(self, pad_token_id):
+        self.pad_token_id = pad_token_id
+
+    def __call__(self, samples):
+        return {
+            k: torch.nn.utils.rnn.pad_sequence(
+                [sample[k].squeeze(0) for sample in samples],
+                batch_first=True,
+                padding_value=self.pad_token_id,
+            )
+            for k in samples[0]
+        }

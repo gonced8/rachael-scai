@@ -2,7 +2,7 @@ import torch
 
 from datasets import load_metric
 from transformers import (
-    AdaFactor,
+    Adafactor,
     PegasusForConditionalGeneration,
     PegasusTokenizer,
 )
@@ -22,20 +22,13 @@ class Pegasus(pl.LightningModule):
         )
         self.rouge_metric = load_metric("rouge")
 
-    def forward(
-        self,
-        input_ids,
-        decoder_input_ids,
-        attention_mask=None,
-        decoder_attention_mask=None,
-    ):
-        return self.model(
+    def forward(self, input_ids, labels=None):
+        output = self.model(
             input_ids=input_ids,
-            attention_mask=attention_mask,
-            decoder_input_ids=decoder_input_ids,
-            decoder_attention_mask=decoder_attention_mask,
+            labels=labels,
             return_dict=True,
         )
+        return output
 
     def training_step(self, batch, batch_idx):
         output = self.forward(**batch)
@@ -47,24 +40,70 @@ class Pegasus(pl.LightningModule):
         output = self.forward(**batch)
         loss = output.loss
 
-        self.rouge_metric.add_batch(
-            predictions=output, references=batch["decoder_input_ids"]
+        predictions = self.tokenizer.batch_decode(
+            torch.argmax(output.logits, dim=2),
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=True,
         )
-        rouge_score = self.rouge_metric.compute()
+        references = self.tokenizer.batch_decode(
+            batch["labels"], skip_special_tokens=True, clean_up_tokenization_spaces=True
+        )
+        self.rouge_metric.add_batch(predictions=predictions, references=references)
 
         self.log("val_loss", loss, prog_bar=True)
-        self.log("rouge", rouge_score, prog_bar=True)
-        return {"val_loss": loss, "rouge": rouge_score}
+        return loss
 
-    # def test_step(self, batch, batch_idx):
-    #    return
+    def validation_epoch_end(self, outputs):
+        rouge_score = self.rouge_metric.compute()
+        rouge_score = parse_rouge_score(rouge_score)
+        self.log_dict(rouge_score, prog_bar=True)
+        return
+
+    def test_step(self, batch, batch_idx):
+        output = self.model.generate(
+            batch["input_ids"],
+            max_length=self.config["Model"]["max_output_length"],
+            do_sample=True,
+        )
+
+        predictions = self.tokenizer.batch_decode(
+            torch.argmax(output.logits, dim=2),
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=True,
+        )
+        references = self.tokenizer.batch_decode(
+            batch["labels"], skip_special_tokens=True, clean_up_tokenization_spaces=True
+        )
+        self.rouge_metric.add_batch(predictions=predictions, references=references)
+        rouge_score = self.rouge_metric.compute()
+        rouge_score = parse_rouge_score(rouge_score)
+
+        print(rouge_score)
+        return
+
+    def generate(self, batch):
+        print(batch.is_cuda, self.model.is_cuda)
+        batch.to(self.device)
+        output = self.model.generate(
+            **kargs,
+            max_length=self.config["Model"]["max_output_length"],
+            do_sample=True,
+        )
+
+        predictions = self.tokenizer.batch_decode(
+            torch.argmax(output.logits, dim=2),
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=True,
+        )
+
+        return predictions
 
     def configure_optimizers(self):
         self.lr = self.config["Model"]["learning_rate"]
         flag = self.lr == "None"
         self.lr = float(self.lr) if not flag else None
 
-        optimizer = AdaFactor(
+        optimizer = Adafactor(
             self.parameters(),
             lr=self.lr,
             scale_parameter=flag,
@@ -84,3 +123,7 @@ class Pegasus(pl.LightningModule):
         # }
         # return [optimizer], [scheduler]
         return optimizer
+
+
+def parse_rouge_score(result):
+    return {k: round(v.mid.fmeasure * 100, 4) for k, v in result.items()}
