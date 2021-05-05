@@ -45,7 +45,7 @@ if st.button("Compute"):
     batch = tokenizer(
         src,
         truncation=True,
-        max_length=int(config["Model"]["max_input_length"]),
+        max_length=int(config["max_input_length"]),
         return_tensors="pt",
     ).to(device)
     translated = model.generate(**batch)

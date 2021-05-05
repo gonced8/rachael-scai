@@ -61,11 +61,11 @@ class CoQA(pl.LightningDataModule):
     def prepare_data(self):
         datasets = {
             "validate": [
-                self.config["DataModule"]["val_dataset"],
+                self.config["val_dataset"],
                 "https://nlp.stanford.edu/data/coqa/coqa-dev-v1.0.json",
             ],
             "train": [
-                self.config["DataModule"]["train_dataset"],
+                self.config["train_dataset"],
                 "https://nlp.stanford.edu/data/coqa/coqa-train-v1.0.json",
             ],
         }
@@ -90,7 +90,7 @@ class CoQA(pl.LightningDataModule):
                     dataset["src"],
                     padding="longest",
                     truncation=True,
-                    max_length=int(self.config["Model"]["max_input_length"]),
+                    max_length=int(self.config["max_input_length"]),
                     return_tensors="pt",
                 ).input_ids
 
@@ -100,7 +100,7 @@ class CoQA(pl.LightningDataModule):
                     dataset["tgt"],
                     padding="longest",
                     truncation=True,
-                    max_length=int(self.config["Model"]["max_output_length"]),
+                    max_length=int(self.config["max_output_length"]),
                     return_tensors="pt",
                 ).input_ids
 
@@ -125,7 +125,7 @@ class CoQA(pl.LightningDataModule):
     def train_dataloader(self):
         return DataLoader(
             self.train_dataset,
-            batch_size=int(self.config["DataModule"]["batch_size"]),
+            batch_size=int(self.config["batch_size"]),
             shuffle=True,
             num_workers=os.cpu_count(),
             pin_memory=bool(torch.cuda.device_count()),
@@ -134,7 +134,7 @@ class CoQA(pl.LightningDataModule):
     def val_dataloader(self):
         return DataLoader(
             self.val_dataset,
-            batch_size=int(self.config["DataModule"]["batch_size"]),
+            batch_size=int(self.config["batch_size"]),
             shuffle=False,
             num_workers=os.cpu_count(),
             pin_memory=bool(torch.cuda.device_count()),

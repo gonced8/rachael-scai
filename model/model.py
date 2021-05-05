@@ -13,12 +13,12 @@ import pytorch_lightning as pl
 class Pegasus(pl.LightningModule):
     def __init__(self, config: dict):
         super().__init__()
+        self.save_hyperparameters(config)
+
         self.config = config
-        self.tokenizer = PegasusTokenizer.from_pretrained(
-            self.config["Model"]["model_name"]
-        )
+        self.tokenizer = PegasusTokenizer.from_pretrained(self.config["model_name"])
         self.model = PegasusForConditionalGeneration.from_pretrained(
-            self.config["Model"]["model_name"]
+            self.config["model_name"]
         )
         self.rouge_metric = load_metric("rouge")
 
@@ -62,7 +62,7 @@ class Pegasus(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         output = self.model.generate(
             batch["input_ids"],
-            max_length=self.config["Model"]["max_output_length"],
+            max_length=self.config["max_output_length"],
             do_sample=True,
         )
 
@@ -86,7 +86,7 @@ class Pegasus(pl.LightningModule):
         batch.to(self.device)
         output = self.model.generate(
             **kargs,
-            max_length=self.config["Model"]["max_output_length"],
+            max_length=self.config["max_output_length"],
             do_sample=True,
         )
 
@@ -99,7 +99,7 @@ class Pegasus(pl.LightningModule):
         return predictions
 
     def configure_optimizers(self):
-        self.lr = self.config["Model"]["learning_rate"]
+        self.lr = self.config["learning_rate"]
         flag = self.lr == "None"
         self.lr = float(self.lr) if not flag else None
 

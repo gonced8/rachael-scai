@@ -22,9 +22,9 @@ def build_trainer(config):
         check_val_every_n_epoch=1,
         gpus=torch.cuda.device_count(),
         default_root_dir="checkpoints",
-        max_epochs=int(config["Trainer"]["max_epochs"]),
-        accumulate_grad_batches=int(config["Trainer"]["accumulate_grad_batches"]),
-        val_check_interval=float(config["Trainer"]["val_check_interval"]),
+        max_epochs=int(config["max_epochs"]),
+        accumulate_grad_batches=int(config["accumulate_grad_batches"]),
+        val_check_interval=float(config["val_check_interval"]),
         callbacks=[
             checkpoint_callback,
             lr_monitor,

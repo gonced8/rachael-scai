@@ -81,11 +81,11 @@ class CoQA(pl.LightningDataModule):
     def prepare_data(self):
         datasets = {
             "validate": [
-                self.config["DataModule"]["val_dataset"],
+                self.config["val_dataset"],
                 "https://nlp.stanford.edu/data/coqa/coqa-dev-v1.0.json",
             ],
             "train": [
-                self.config["DataModule"]["train_dataset"],
+                self.config["train_dataset"],
                 "https://nlp.stanford.edu/data/coqa/coqa-train-v1.0.json",
             ],
         }
@@ -100,8 +100,8 @@ class CoQA(pl.LightningDataModule):
             if os.path.isfile(tokenized_path):
                 print(f"Found {dataset_path} tokenized. Loading from {tokenized_path}")
                 dataset = self.CoQADataset(
-                    max_input_length=int(self.config["Model"]["max_input_length"]),
-                    max_output_length=int(self.config["Model"]["max_output_length"]),
+                    max_input_length=int(self.config["max_input_length"]),
+                    max_output_length=int(self.config["max_output_length"]),
                     filename=tokenized_path,
                 )
             else:
@@ -120,8 +120,8 @@ class CoQA(pl.LightningDataModule):
                     tokenized["src"],
                     tokenized["tgt"],
                     vocab_size=self.tokenizer.vocab_size,
-                    max_input_length=int(self.config["Model"]["max_input_length"]),
-                    max_output_length=int(self.config["Model"]["max_output_length"]),
+                    max_input_length=int(self.config["max_input_length"]),
+                    max_output_length=int(self.config["max_output_length"]),
                 )
 
                 dataset.save(tokenized_path)
@@ -137,7 +137,7 @@ class CoQA(pl.LightningDataModule):
     def train_dataloader(self):
         return DataLoader(
             self.train_dataset,
-            batch_size=int(self.config["DataModule"]["batch_size"]),
+            batch_size=int(self.config["batch_size"]),
             shuffle=True,
             num_workers=os.cpu_count(),
             collate_fn=AdaptiveBatch(self.tokenizer.pad_token_id),
@@ -147,7 +147,7 @@ class CoQA(pl.LightningDataModule):
     def val_dataloader(self):
         return DataLoader(
             self.val_dataset,
-            batch_size=int(self.config["DataModule"]["batch_size"]),
+            batch_size=int(self.config["batch_size"]),
             shuffle=False,
             num_workers=os.cpu_count(),
             collate_fn=AdaptiveBatch(self.tokenizer.pad_token_id),
