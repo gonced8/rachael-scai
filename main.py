@@ -1,17 +1,15 @@
 import yaml
 
-from pytorch_lightning.utilities.cli import LightningCLI
-
-from model.data_module_adaptive import CoQA
+from model.data_module import CoQA
 from model.model import Pegasus
 from trainer import build_trainer
 
 if __name__ == "__main__":
-    cli = LightningCLI(Pegasus, CoQA)
+    with open("config/example.yaml", "r") as f:
+        hparams = yaml.full_load(f)
 
-    # model = Pegasus(config)
-    # data = CoQA(config, model.tokenizer)
+    model = Pegasus(hparams)
+    data = CoQA(model.hparams, model.tokenizer)
 
-    # trainer = build_trainer(config)
-    # trainer.fit(model, data)
-    # trainer.save_checkpoint("example.ckpt")
+    trainer = build_trainer(model.hparams)
+    trainer.fit(model, data)

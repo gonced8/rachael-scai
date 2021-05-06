@@ -1,4 +1,4 @@
-import configparser
+import yaml
 
 import torch
 import streamlit as st
@@ -8,21 +8,20 @@ from model.model import Pegasus
 
 @st.cache(allow_output_mutation=True, suppress_st_warning=True)
 def init():
-    config = configparser.ConfigParser()
-    config.read("config/example.ini")
-
-    model = Pegasus(config)
-    model = model.load_from_checkpoint(
-        "checkpoints/lightning_logs/version_0/checkpoints/best.ckpt", config=config
+    model = Pegasus.load_from_checkpoint(
+        "checkpoints/version_0/checkpoints/best.ckpt",
+        hparams_file="checkpoints/version_0/hparams.yaml",
     )
 
+    hparams = model.hparams
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tokenizer = model.tokenizer
     model = model.model.to(device)
-    return config, device, tokenizer, model
+
+    return hparams, device, tokenizer, model
 
 
-config, device, tokenizer, model = init()
+hparams, device, tokenizer, model = init()
 
 context = st.text_area(
     "Context",
@@ -45,7 +44,7 @@ if st.button("Compute"):
     batch = tokenizer(
         src,
         truncation=True,
-        max_length=int(config["max_input_length"]),
+        max_length=hparams.max_input_length,
         return_tensors="pt",
     ).to(device)
     translated = model.generate(**batch)

@@ -11,16 +11,17 @@ import pytorch_lightning as pl
 
 
 class Pegasus(pl.LightningModule):
-    def __init__(self, config: dict):
+    def __init__(self, hparams: dict):
         super().__init__()
-        self.save_hyperparameters(config)
+        self.save_hyperparameters(hparams)
 
-        self.config = config
-        self.tokenizer = PegasusTokenizer.from_pretrained(self.config["model_name"])
-        self.model = PegasusForConditionalGeneration.from_pretrained(
-            self.config["model_name"]
+        self.tokenizer = PegasusTokenizer.from_pretrained(
+            self.hparams.model_name, cache_dir=".cache/"
         )
-        self.rouge_metric = load_metric("rouge")
+        self.model = PegasusForConditionalGeneration.from_pretrained(
+            self.hparams.model_name, cache_dir=".cache/"
+        )
+        self.rouge_metric = load_metric("rouge", cache_dir=".cache/")
 
     def forward(self, input_ids, labels=None):
         output = self.model(
@@ -34,6 +35,7 @@ class Pegasus(pl.LightningModule):
         output = self.forward(**batch)
         loss = output.loss
 
+        self.log("train_loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -56,24 +58,26 @@ class Pegasus(pl.LightningModule):
     def validation_epoch_end(self, outputs):
         rouge_score = self.rouge_metric.compute()
         rouge_score = parse_rouge_score(rouge_score)
+
         self.log_dict(rouge_score, prog_bar=True)
         return
 
     def test_step(self, batch, batch_idx):
         output = self.model.generate(
             batch["input_ids"],
-            max_length=self.config["max_output_length"],
+            max_length=self.hparams.max_output_length,
             do_sample=True,
         )
 
         predictions = self.tokenizer.batch_decode(
-            torch.argmax(output.logits, dim=2),
+            output,
             skip_special_tokens=True,
             clean_up_tokenization_spaces=True,
         )
         references = self.tokenizer.batch_decode(
             batch["labels"], skip_special_tokens=True, clean_up_tokenization_spaces=True
         )
+
         self.rouge_metric.add_batch(predictions=predictions, references=references)
         rouge_score = self.rouge_metric.compute()
         rouge_score = parse_rouge_score(rouge_score)
@@ -86,7 +90,7 @@ class Pegasus(pl.LightningModule):
         batch.to(self.device)
         output = self.model.generate(
             **kargs,
-            max_length=self.config["max_output_length"],
+            max_length=self.hparams.max_output_length,
             do_sample=True,
         )
 
@@ -99,7 +103,7 @@ class Pegasus(pl.LightningModule):
         return predictions
 
     def configure_optimizers(self):
-        self.lr = self.config["learning_rate"]
+        self.lr = self.hparams.learning_rate
         flag = self.lr == "None"
         self.lr = float(self.lr) if not flag else None
 
