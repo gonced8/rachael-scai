@@ -1,0 +1,162 @@
+@Misc{Benesty2020,
+  author = {Michaël Benesty},
+  note   = {Accessed on 2021-05-13.},
+  title  = {{Divide HuggingFace training time by 2 | Towards Data Science}},
+  year   = {2020},
+  url    = {https://towardsdatascience.com/divide-hugging-face-transformers-training-time-by-2-or-more-21bf7129db9q-21bf7129db9e},
+}
+
+@InProceedings{Conneau2018,
+  author    = {Conneau, Alexis and Rinott, Ruty and Lample, Guillaume and Williams, Adina and Bowman, Samuel and Schwenk, Holger and Stoyanov, Veselin},
+  booktitle = {Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing},
+  title     = {{XNLI}: Evaluating Cross-lingual Sentence Representations},
+  year      = {2018},
+  address   = {Brussels, Belgium},
+  month     = oct #{-} # nov,
+  pages     = {2475--2485},
+  publisher = {Association for Computational Linguistics},
+  abstract  = {State-of-the-art natural language processing systems rely on supervision in the form of annotated data to learn competent models. These models are generally trained on data in a single language (usually English), and cannot be directly used beyond that language. Since collecting data in every language is not realistic, there has been a growing interest in cross-lingual language understanding (XLU) and low-resource cross-language transfer. In this work, we construct an evaluation set for XLU by extending the development and test sets of the Multi-Genre Natural Language Inference Corpus (MultiNLI) to 14 languages, including low-resource languages such as Swahili and Urdu. We hope that our dataset, dubbed XNLI, will catalyze research in cross-lingual sentence understanding by providing an informative standard evaluation task. In addition, we provide several baselines for multilingual sentence understanding, including two based on machine translation systems, and two that use parallel data to train aligned multilingual bag-of-words and LSTM encoders. We find that XNLI represents a practical and challenging evaluation suite, and that directly translating the test data yields the best performance among available baselines.},
+  doi       = {10.18653/v1/D18-1269},
+  file      = {:Conneau2018 - XNLI_ Evaluating Cross Lingual Sentence Representations.pdf:PDF},
+  url       = {https://www.aclweb.org/anthology/D18-1269},
+}
+
+@InProceedings{Dalton2020,
+  author     = {Jeffrey Dalton and Chenyan Xiong and Jamie Callan},
+  booktitle  = {The Twenty-Ninth Text REtrieval Conference(TREC 2020) Proceedings},
+  title      = {CAsT 2020: The Conversational Assistance Track Overview},
+  year       = {2020},
+  comment    = {Conversational Assistance Track (CAsT).
+The task is identify relevant passages for conversational queries that evolve through a trajectory of a discussion on a topic.
+2 datasets: MS MARCO and Wikipedia (complex answer retrieval).
+From CAsT 2019 to 2020, utterances now refer to previous responses given by a system.
+A single canonical result is selected as the response for each turn.
+The information (title or description) unfolds only through the turns.
+Topics average 9.5 turns.
+Baseline search system: standard BM25 retreival followed by a BERT-based reranker.
+All turns have a response: a single canonical passage response, provided by a hypothetical agent. 2 versions of canonical responses: automatic canonical and manual canonical.
+Baseline System: initial ranking is prouced by Solr using BM25. Uses a BERT-base reranker from Hugging Face.
+3 categories in the runs: manual, automatic-canoncial, automatic.
+Most teams used a multi-step pipeline and a pre-trained transformer.
+Conversational Context.},
+  file       = {:Dalton2020 - CAsT 2020_ the Conversational Assistance Track Overview.pdf:PDF},
+  groups     = {NLP, Retrieval},
+  keywords   = {read, rank2},
+  ranking    = {rank2},
+  readstatus = {read},
+  url        = {https://trec.nist.gov/pubs/trec29/trec2020.html},
+}
+
+@Misc{Falcon2019,
+  author  = {William A Falcon and others},
+  note    = {Accessed on 2021-05-13.},
+  title   = {{P}y{T}orch {L}ightning - {GitHub}},
+  year    = {2019},
+  volume  = {3},
+  url = {https://github.com/PyTorchLightning/pytorch-lightning},
+}
+
+@Misc{HuggingFace2020,
+  author = {{The Hugging Face Team}},
+  note   = {Accessed on 2021-05-13.},
+  title  = {Transformers -- transformers 4.5.0.dev0 documentation},
+  year   = {2020},
+  url    = {https://huggingface.co/transformers/},
+}
+
+@InProceedings{Nguyen2016,
+  author    = {Tri Nguyen and Mir Rosenberg and Xia Song and Jianfeng Gao and Saurabh Tiwary and Rangan Majumder and Li Deng},
+  booktitle = {Proceedings of the Workshop on Cognitive Computation: Integrating neural and symbolic approaches 2016 co-located with the 30th Annual Conference on Neural Information Processing Systems {(NIPS} 2016), Barcelona, Spain, December 9, 2016},
+  title     = {{MS} {MARCO:} {A} Human Generated MAchine Reading COmprehension Dataset},
+  year      = {2016},
+  editor    = {Tarek Richard Besold and Antoine Bordes and Artur S. d'Avila Garcez and Greg Wayne},
+  publisher = {CEUR-WS.org},
+  series    = {{CEUR} Workshop Proceedings},
+  volume    = {1773},
+  bibsource = {dblp computer science bibliography, https://dblp.org},
+  biburl    = {https://dblp.org/rec/conf/nips/NguyenRSGTMD16.bib},
+  file      = {:Nguyen2016 - MS MARCO_ a Human Generated MAchine Reading COmprehension Dataset.pdf:PDF},
+  groups    = {To Read},
+  timestamp = {Wed, 12 Feb 2020 16:44:20 +0100},
+  url       = {http://ceur-ws.org/Vol-1773/CoCoNIPS\_2016\_paper9.pdf},
+}
+
+@Article{Reddy2019,
+  author      = {Siva Reddy and Danqi Chen and Christopher D. Manning},
+  journal     = {Transactions of the Association for Computational Linguistics},
+  title       = {{CoQA}: A Conversational Question Answering Challenge},
+  year        = {2019},
+  month       = {nov},
+  pages       = {249--266},
+  volume      = {7},
+  abstract    = {Humans gather information by engaging in conversations involving a series of interconnected questions and answers. For machines to assist in information gathering, it is therefore essential to enable them to answer conversational questions. We introduce CoQA, a novel dataset for building Conversational Question Answering systems. Our dataset contains 127k questions with answers, obtained from 8k conversations about text passages from seven diverse domains. The questions are conversational, and the answers are free-form text with their corresponding evidence highlighted in the passage. We analyze CoQA in depth and show that conversational questions have challenging phenomena not present in existing reading comprehension datasets, e.g., coreference and pragmatic reasoning. We evaluate strong conversational and reading comprehension models on CoQA. The best system obtains an F1 score of 65.4\%, which is 23.4 points behind human performance (88.8\%), indicating there is ample room for improvement. We launch CoQA as a challenge to the community at http://stanfordnlp.github.io/coqa/},
+  date        = {2018-08-21},
+  doi         = {10.1162/tacl_a_00266},
+  eprint      = {1808.07042},
+  eprintclass = {cs.CL},
+  eprinttype  = {arXiv},
+  file        = {:Reddy2019 - CoQA_ a Conversational Question Answering Challenge.pdf:PDF},
+  groups      = {To Read},
+  keywords    = {cs.CL, cs.AI, cs.LG},
+  publisher   = {{MIT} Press - Journals},
+}
+
+@Misc{Streamlit2021,
+  author = {{Streamlit Inc.}},
+  note   = {Accessed on 2021-05-16.},
+  title  = {Streamlit (website)},
+  year   = {2021},
+  url    = {https://streamlit.io/},
+}
+
+@InProceedings{Zhang2020b,
+  author       = {Jingqing Zhang and Yao Zhao and Mohammad Saleh and Peter J. Liu},
+  booktitle    = {International Conference on Machine Learning},
+  title        = {PEGASUS: Pre-training with Extracted Gap-sentences for Abstractive Summarization},
+  year         = {2020},
+  organization = {PMLR},
+  pages        = {11328--11339},
+  abstract     = {Recent work pre-training Transformers with self-supervised objectives on large text corpora has shown great success when fine-tuned on downstream NLP tasks including text summarization. However, pre-training objectives tailored for abstractive text summarization have not been explored. Furthermore there is a lack of systematic evaluation across diverse domains. In this work, we propose pre-training large Transformer-based encoder-decoder models on massive text corpora with a new self-supervised objective. In PEGASUS, important sentences are removed/masked from an input document and are generated together as one output sequence from the remaining sentences, similar to an extractive summary. We evaluated our best PEGASUS model on 12 downstream summarization tasks spanning news, science, stories, instructions, emails, patents, and legislative bills. Experiments demonstrate it achieves state-of-the-art performance on all 12 downstream datasets measured by ROUGE scores. Our model also shows surprising performance on low-resource summarization, surpassing previous state-of-the-art results on 6 datasets with only 1000 examples. Finally we validated our results using human evaluation and show that our model summaries achieve human performance on multiple datasets.},
+  comment      = {PEGASUS is a model for summarization. It takes a Transformer architecures and pre-trains it in such way that it becomes better when fine tuned for summarization.
+Extractive summarization copies informative fragments from the input. Abstractive summarization may generate novel words.
+PEGASUS aims for abstractive text summarization and is evaluated on 12 downstream datasets.
+Masking whole sentences from a document and generating these gap-sentences from the rest of the document works well as a pre-training objective for summariazation tasks. Choosing important senteces outperforms lead or randomly selected ones.
+Gap Sentences Generation (GSG).
+Pre-training with Extracted Gap-sentences for Abstractive SUmmarization Sequence-to-sequence models (PEGASUS).
+PEGASUS model is able to adapt very quickly when fine-tuning with small numbers of supervised pairs (1000 examples).
+Most similar works are Transformer encoder-decoder models pre-trained on some masked input pre-training objective.
+PEGASUS masks multiple whole sentences rather than smaller continous text spans. In the final objective, they choose sentences based on importance, instead of randomly.
+Masked Language Model (MLM) as a sole pre-training objective or along with GSG. When MLM only, the decoder and encoder share the same parameters during fine-tuning. However, MLM does not improve down-stream tasks at large number of pre-training steps.
+PEGASUS was pre-trained with 2 large text corpora.
+For downstream summarization, they use TensorFlow Summarization Datasets.
+Architecture of model.
+Optimized using Adafactor.
+Pre-training models transfer more effectively to downstream tasks when their domains are aligned better.
+Siniusoidal positional encodings generalize well when fine-tuning beyonde the input lengths observed in training up to 1024 tokens.
+With smaller datatsets, PEGASUS_LARGE performs better.},
+  date         = {2019-12-18},
+  eprint       = {1912.08777},
+  eprintclass  = {cs.CL},
+  eprinttype   = {arXiv},
+  file         = {:Zhang2019 - PEGASUS_ Pre Training with Extracted Gap Sentences for Abstractive Summarization.pdf:PDF},
+  groups       = {Model, DL, NLP},
+  keywords     = {cs.CL, rank4, read},
+  ranking      = {rank4},
+  readstatus   = {read},
+}
+
+@InProceedings{Wolf2020,
+  author    = {Wolf, Thomas and Debut, Lysandre and Sanh, Victor and Chaumond, Julien and Delangue, Clement and Moi, Anthony and Cistac, Pierric and Rault, Tim and Louf, Remi and Funtowicz, Morgan and Davison, Joe and Shleifer, Sam and von Platen, Patrick and Ma, Clara and Jernite, Yacine and Plu, Julien and Xu, Canwen and Le Scao, Teven and Gugger, Sylvain and Drame, Mariama and Lhoest, Quentin and Rush, Alexander},
+  booktitle = {Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing: System Demonstrations},
+  title     = {Transformers: State-of-the-Art Natural Language Processing},
+  year      = {2020},
+  address   = {Online},
+  month     = oct,
+  pages     = {38--45},
+  publisher = {Association for Computational Linguistics},
+  abstract  = {Recent progress in natural language processing has been driven by advances in both model architecture and model pretraining. Transformer architectures have facilitated building higher-capacity models and pretraining has made it possible to effectively utilize this capacity for a wide variety of tasks. Transformers is an open-source library with the goal of opening up these advances to the wider machine learning community. The library consists of carefully engineered state-of-the art Transformer architectures under a unified API. Backing this library is a curated collection of pretrained models made by and available for the community. Transformers is designed to be extensible by researchers, simple for practitioners, and fast and robust in industrial deployments. The library is available at https://github.com/huggingface/transformers.},
+  doi       = {10.18653/v1/2020.emnlp-demos.6},
+  file      = {:Wolf2020 - Transformers_ State of the Art Natural Language Processing.pdf:PDF},
+  groups    = {To Read},
+  url       = {https://www.aclweb.org/anthology/2020.emnlp-demos.6},
+}
