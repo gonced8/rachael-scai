@@ -62,6 +62,9 @@ class Pegasus(pl.LightningModule):
         self.log_dict(rouge_score, prog_bar=True)
         return
 
+    def on_epoch_start(self):
+        print()
+
     def test_step(self, batch, batch_idx):
         output = self.model.generate(
             batch["input_ids"],
