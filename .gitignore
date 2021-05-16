@@ -2,6 +2,7 @@
 checkpoints/
 data/
 dataset/
+transformers/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

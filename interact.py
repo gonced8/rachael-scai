@@ -1,3 +1,4 @@
+import os
 import yaml
 
 import torch
@@ -8,10 +9,17 @@ from model.model import Pegasus
 
 @st.cache(allow_output_mutation=True, suppress_st_warning=True)
 def init():
-    model = Pegasus.load_from_checkpoint(
-        "checkpoints/version_0/checkpoints/best.ckpt",
-        hparams_file="checkpoints/version_0/hparams.yaml",
-    )
+    filename = "checkpoints/version_0/checkpoints/best.ckpt"
+    if os.path.isfile(filename):
+        model = Pegasus.load_from_checkpoint(
+            filename,
+            hparams_file="checkpoints/version_0/hparams.yaml",
+        )
+    else:
+        with open("config/example.yaml", "r") as f:
+            hparams = yaml.full_load(f)
+        hparams["model_name"] = "gonced8/pegasus-qa"
+        model = Pegasus(hparams)
 
     hparams = model.hparams
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
