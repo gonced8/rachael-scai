@@ -110,10 +110,12 @@ class CoQA(pl.LightningDataModule):
                 dataset = self.process_data(dataset_path)
                 tokenized = {}
 
-                tokenized["src"] = self.tokenizer(dataset["src"])["input_ids"]
+                src = [sentence.replace("\n", "<n>") for sentence in dataset["src"]]
+                tokenized["src"] = self.tokenizer(src)["input_ids"]
                 print(f"Source: {len(tokenized['src'])} samples")
 
-                tokenized["tgt"] = self.tokenizer(dataset["tgt"])["input_ids"]
+                tgt = [sentence.replace("\n", "<n>") for sentence in dataset["tgt"]]
+                tokenized["tgt"] = self.tokenizer(tgt)["input_ids"]
                 print(f"Target: {len(tokenized['tgt'])} samples")
 
                 dataset = self.CoQADataset(

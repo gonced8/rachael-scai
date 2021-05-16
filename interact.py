@@ -23,9 +23,10 @@ def init():
 
 hparams, device, tokenizer, model = init()
 
+st.subheader("Context")
 context = st.text_area(
-    "Context",
-    """ If you own an iPhone 7 or 7 Plus, then you can easily restart it by pressing the correct buttons. In order to force reboot iPhone 6, you need to apply a different method, but to reboot an iPhone the ideal way, there is a simple technique. You can simply do it by pressing the power button.
+    "",
+    """If you own an iPhone 7 or 7 Plus, then you can easily restart it by pressing the correct buttons. In order to force reboot iPhone 6, you need to apply a different method, but to reboot an iPhone the ideal way, there is a simple technique. You can simply do it by pressing the power button.
 Before we proceed and teach you how to restart iPhone, have a look at the anatomy of the device. The home button is located at the bottom while the volume up/down key is located on the left side. The Power (on/off or sleep/wake) button is located either on the right side or at the top.
 Now, let’s proceed and learn how to reboot iPhone 7 and 7 Plus. You can do it by following these easy steps.
 1. Start by pressing the Power (sleep/wake) button until a slider would appear on the screen.
@@ -36,17 +37,30 @@ By following this drill, you would be able to restart your phone. Nevertheless, 
 2. While holding the Power button, press the Volume down button.
 3. Make sure that you keep holding both the buttons for another ten seconds. The screen will go blank and your phone will vibrate. Let go of them when the Apple logo appears on the screen. """,
 )
+context_placeholder = st.empty()
 
-question = st.text_area("Question", "How do I restart my phone?")
+st.subheader("Question")
+question = st.text_area("", "How do I restart my phone?")
+question_placeholder = st.empty()
+
 
 if st.button("Compute"):
-    src = question + "\n" + context
+    src = (question + "\n" + context).replace("\n", "<n>")
     batch = tokenizer(
         src,
         truncation=True,
         max_length=hparams.max_input_length,
         return_tensors="pt",
     ).to(device)
+
+    input_text = tokenizer.batch_decode(batch["input_ids"])[0]
+    question_truncated, *context_truncated = input_text.split("<n>")
+    context_truncated = "  \n".join(context_truncated)
+    question_truncated = question_truncated.replace("<n>", "  \n")
+    context_placeholder.write(context_truncated)
+    question_placeholder.write(question_truncated)
+
     translated = model.generate(**batch)
-    tgt_text = tokenizer.batch_decode(translated, skip_special_tokens=True)
-    st.write(tgt_text[0])
+    tgt_text = tokenizer.batch_decode(translated)[0].replace("<n>", "  \n")
+    st.subheader("Answer")
+    st.write(tgt_text)
