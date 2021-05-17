@@ -128,7 +128,7 @@
         
     \subsection{TREC CAsT Dataset}
         
-        The first idea was to use the dataset from TREC CAsT (Conversational Assistance Track) year 2, discussed in \cite{Dalton2020}. Bellow is an alleged example from this dataset:
+        The first idea was to use the dataset from TREC CAsT (Conversational Assistance Track) year 2, discussed in \cite{Dalton2020}. Below is an alleged example from this dataset:
 
         \begin{lstlisting}[style=json]
 {
@@ -252,7 +252,7 @@
     
 \section{Results}
 
-    The PEGASUS model (checkpoint pegasus-large) was trained with the CoQA dataset for 2 epochs (early stopping while monitoring the validation loss). The maximum input sequence length was set to 1024 and the maximum output sequence length to 256. The batch size had to be only 2 due to insufficient GPU memory, but it accumulates the gradient of 128 batches during training, so that it is similar to a batch size of 256. The loss and ROUGE values obtained  are presented in \Cref{fig:results}.
+    The PEGASUS model (checkpoint pegasus-large) was trained with the CoQA dataset for 3 epochs (early stopping while monitoring the validation loss). The maximum input sequence length was set to 1024 and the maximum output sequence length to 256. The batch size had to be only 2 due to insufficient GPU memory, but it accumulates the gradient of 128 batches during training, so that it is similar to a batch size of 256. The loss and ROUGE values obtained  are presented in \Cref{fig:results}.
     
     \begin{figure}[!htb]
     	\centering
