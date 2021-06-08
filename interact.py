@@ -1,6 +1,8 @@
+import json
 import os
 import yaml
 
+from pyserini.search import SimpleSearcher
 import torch
 import streamlit as st
 
@@ -26,33 +28,31 @@ def init():
     tokenizer = model.tokenizer
     model = model.model.to(device)
 
-    return hparams, device, tokenizer, model
+    searcher = SimpleSearcher.from_prebuilt_index("msmarco-passage")
+
+    return hparams, device, tokenizer, model, searcher
 
 
-hparams, device, tokenizer, model = init()
+hparams, device, tokenizer, model, searcher = init()
 
 st.subheader("Context")
-context = st.text_area(
-    "",
-    """If you own an iPhone 7 or 7 Plus, then you can easily restart it by pressing the correct buttons. In order to force reboot iPhone 6, you need to apply a different method, but to reboot an iPhone the ideal way, there is a simple technique. You can simply do it by pressing the power button.
-Before we proceed and teach you how to restart iPhone, have a look at the anatomy of the device. The home button is located at the bottom while the volume up/down key is located on the left side. The Power (on/off or sleep/wake) button is located either on the right side or at the top.
-Now, let’s proceed and learn how to reboot iPhone 7 and 7 Plus. You can do it by following these easy steps.
-1. Start by pressing the Power (sleep/wake) button until a slider would appear on the screen.
-2. Now, drag the slider to turn off your phone. Wait for a while as the phone vibrates and turns off.
-3. When the device is switched off, hold the power button again until you see the Apple logo.
-By following this drill, you would be able to restart your phone. Nevertheless, there are times when users need to force-restart their device. To force restart iPhone 7 or 7 Plus, follow these instructions.
-1. Press the Power button on your device.
-2. While holding the Power button, press the Volume down button.
-3. Make sure that you keep holding both the buttons for another ten seconds. The screen will go blank and your phone will vibrate. Let go of them when the Apple logo appears on the screen. """,
-)
-context_placeholder = st.empty()
+msmarco = st.slider("MSMARCO retrieved candidates", min_value=0, max_value=20, value=0)
+context = st.text_area("Manual")
+# context_placeholder = st.empty()
 
 st.subheader("Question")
 question = st.text_area("", "How do I restart my phone?")
-question_placeholder = st.empty()
-
+# question_placeholder = st.empty()
 
 if st.button("Compute"):
+    print(msmarco)
+    if msmarco > 0:
+        hits = searcher.search(question)
+        passages = [json.loads(passage.raw)["contents"] for passage in hits[:msmarco]]
+        if context:
+            passages.insert(0, context)
+        context = "\n".join(passages)
+
     src = (question + "\n" + context).replace("\n", "<n>")
     batch = tokenizer(
         src,
@@ -65,10 +65,13 @@ if st.button("Compute"):
     question_truncated, *context_truncated = input_text.split("<n>")
     context_truncated = "  \n".join(context_truncated)
     question_truncated = question_truncated.replace("<n>", "  \n")
-    context_placeholder.write(context_truncated)
-    question_placeholder.write(question_truncated)
+    # context_placeholder.write(context_truncated)
+    # question_placeholder.write(question_truncated)
 
     translated = model.generate(**batch)
     tgt_text = tokenizer.batch_decode(translated)[0].replace("<n>", "  \n")
     st.subheader("Answer")
     st.write(tgt_text)
+
+    st.subheader("Model Input")
+    st.write(input_text.replace("<n>", "  \n"))

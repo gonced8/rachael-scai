@@ -4,6 +4,7 @@ matplotlib
 nltk
 numpy
 pandas
+pyserini
 pytorch-lightning==1.2.10
 rouge_score
 sentencepiece==0.1.95
