@@ -45,7 +45,6 @@ question = st.text_area("", "How do I restart my phone?")
 # question_placeholder = st.empty()
 
 if st.button("Compute"):
-    print(msmarco)
     if msmarco > 0:
         hits = searcher.search(question)
         passages = [json.loads(passage.raw)["contents"] for passage in hits[:msmarco]]
