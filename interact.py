@@ -3,6 +3,8 @@ import os
 import yaml
 
 from pyserini.search import SimpleSearcher
+from pyserini.dsearch import SimpleDenseSearcher, TctColBertQueryEncoder
+from pyserini.hsearch import HybridSearcher
 import torch
 import streamlit as st
 
@@ -28,29 +30,39 @@ def init():
     tokenizer = model.tokenizer
     model = model.model.to(device)
 
-    searcher = SimpleSearcher.from_prebuilt_index("msmarco-passage")
+    ssearcher = SimpleSearcher.from_prebuilt_index("msmarco-passage")
+    encoder = TctColBertQueryEncoder("castorini/tct_colbert-msmarco")
+    dsearcher = SimpleDenseSearcher.from_prebuilt_index(
+        "msmarco-passage-tct_colbert-hnsw", encoder
+    )
+    hsearcher = HybridSearcher(dsearcher, ssearcher)
 
-    return hparams, device, tokenizer, model, searcher
+    return hparams, device, tokenizer, model, ssearcher, hsearcher
 
 
-hparams, device, tokenizer, model, searcher = init()
+hparams, device, tokenizer, model, ssearcher, hsearcher = init()
+
+st.subheader("Question")
+question = st.text_area("", "How do I restart my phone?")
+# question_placeholder = st.empty()
 
 st.subheader("Context")
 msmarco = st.slider("MSMARCO retrieved candidates", min_value=0, max_value=20, value=0)
 context = st.text_area("Manual")
 # context_placeholder = st.empty()
 
-st.subheader("Question")
-question = st.text_area("", "How do I restart my phone?")
-# question_placeholder = st.empty()
-
 if st.button("Compute"):
     if msmarco > 0:
-        hits = searcher.search(question)
-        passages = [json.loads(passage.raw)["contents"] for passage in hits[:msmarco]]
+        hits = hsearcher.search(question)[:msmarco]
+        docs = [ssearcher.doc(hit.docid) for hit in hits]
+        passages = [json.loads(doc.raw())["contents"] for doc in docs]
+        passages = [
+            passage.encode("ascii", "ignore").decode("utf8") for passage in passages
+        ]
         if context:
             passages.insert(0, context)
         context = "\n".join(passages)
+        context = context.encode("ascii", "ignore").decode("utf8")
 
     src = (question + "\n" + context).replace("\n", "<n>")
     batch = tokenizer(
@@ -67,7 +79,9 @@ if st.button("Compute"):
     # context_placeholder.write(context_truncated)
     # question_placeholder.write(question_truncated)
 
-    translated = model.generate(**batch)
+    translated = model.generate(
+        **batch, length_penalty=1.0, repetition_penalty=1.2, no_repeat_ngram_size=10
+    )
     tgt_text = tokenizer.batch_decode(translated)[0].replace("<n>", "  \n")
     st.subheader("Answer")
     st.write(tgt_text)

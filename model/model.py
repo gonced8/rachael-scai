@@ -98,7 +98,7 @@ class Pegasus(pl.LightningModule):
         )
 
         predictions = self.tokenizer.batch_decode(
-            torch.argmax(output.logits, dim=2),
+            output,
             skip_special_tokens=True,
             clean_up_tokenization_spaces=True,
         )
