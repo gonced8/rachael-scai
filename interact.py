@@ -37,25 +37,33 @@ def init():
     )
     hsearcher = HybridSearcher(dsearcher, ssearcher)
 
-    return hparams, device, tokenizer, model, ssearcher, hsearcher
+    my_searcher = SimpleSearcher("data/ubuntu/index/sparse")
+
+    return hparams, device, tokenizer, model, ssearcher, hsearcher, my_searcher
 
 
-hparams, device, tokenizer, model, ssearcher, hsearcher = init()
+hparams, device, tokenizer, model, ssearcher, hsearcher, my_searcher = init()
 
 st.subheader("Question")
 question = st.text_area("", "How do I restart my phone?")
 # question_placeholder = st.empty()
 
 st.subheader("Context")
-msmarco = st.slider("MSMARCO retrieved candidates", min_value=0, max_value=20, value=0)
+retrieval = st.selectbox("Retrieval", ["None", "MSMARCO", "Ubuntu"], index=0)
+candidates = st.slider("# of retrieved candidates", min_value=0, max_value=20, value=0)
 context = st.text_area("Manual")
 # context_placeholder = st.empty()
 
 if st.button("Compute"):
-    if msmarco > 0:
-        hits = hsearcher.search(question)[:msmarco]
-        docs = [ssearcher.doc(hit.docid) for hit in hits]
-        passages = [json.loads(doc.raw())["contents"] for doc in docs]
+    if retrieval != "None" and candidates > 0:
+        if retrieval == "MSMARCO":
+            hits = hsearcher.search(question)[:candidates]
+            docs = [ssearcher.doc(hit.docid) for hit in hits]
+            passages = [json.loads(doc.raw())["contents"] for doc in docs]
+        elif retrieval == "Ubuntu":
+            hits = my_searcher.search(question)[:candidates]
+            passages = [json.loads(doc.raw)["contents"] for doc in hits]
+
         passages = [
             passage.encode("ascii", "ignore").decode("utf8") for passage in passages
         ]

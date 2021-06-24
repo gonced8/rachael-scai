@@ -11,6 +11,6 @@ learning_rate: None
 #1e-4
 
 # Data
-train_dataset: data/coqa-train-v1.0.json
-val_dataset: data/coqa-dev-v1.0.json
+train_dataset: data/coqa/coqa-train-v1.0.json
+val_dataset: data/coqa/coqa-dev-v1.0.json
 batch_size: 2
