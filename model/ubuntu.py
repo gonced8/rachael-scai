@@ -3,9 +3,11 @@ import json
 import os
 import re
 
-from tqdm.contrib.concurrent import process_map
+# from tqdm.contrib.concurrent import process_map
+from pyserini.search import SimpleSearcher
 import torch
 from torch.utils.data import DataLoader
+import tqdm
 from transformers import PreTrainedTokenizer
 import pytorch_lightning as pl
 
@@ -22,32 +24,38 @@ class Ubuntu(pl.LightningDataModule):
         if os.path.isfile(dataset_path):
             print("Found tokenized dataset.")
 
-            print(f"Loading from {datasets_path}")
-            self.dataset = self.CustomDataset(
-                max_input_length=self.hparams.max_input_length,
-                max_output_length=self.hparams.max_output_length,
-                filename=dataset_path,
-            )
+            print(f"Loading from {dataset_path}")
+            dataset = load_dataset(dataset_path)
 
         else:
             print(f"Tokenizing dataset. This might take a while...")
             documents_folder = os.path.join(self.hparams.dataset, "documents")
 
-            tokenized = self.process_and_tokenize(documents_folder)
+            dataset = self.process_and_tokenize(documents_folder)
+            print(f"{len(dataset['docid'])} conversations")
 
-            print(f"{len(tokenized)} samples")
-
-            # TODO: IMPROVE HOW IT IS STORED IN MEMORY AND HOW IT IS SPLITTED
-            dataset = self.CustomDataset(
-                tokenized,
-                tokenized,
-                vocab_size=self.tokenizer.vocab_size,
-            )
-
-            dataset.save(dataset_path)
+            dataset = save_dataset(dataset, dataset_path)
             print(f"Saved tokenized dataset to {dataset_path}")
 
-            self.dataset = dataset
+        dataset = self.generate_samples(**dataset)
+
+        idx = round(len(dataset["input_ids"]) * self.hparams.split)
+
+        self.train_dataset = CustomDataset(
+            dataset["input_ids"][:idx],
+            dataset["labels"][:idx],
+            vocab_size=self.tokenizer.vocab_size,
+            max_input_length=self.hparams.max_input_length,
+            max_output_length=self.hparams.max_output_length,
+        )
+
+        self.val_dataset = CustomDataset(
+            dataset["input_ids"][idx:],
+            dataset["labels"][idx:],
+            vocab_size=self.tokenizer.vocab_size,
+            max_input_length=self.hparams.max_input_length,
+            max_output_length=self.hparams.max_output_length,
+        )
 
     def train_dataloader(self):
         return DataLoader(
@@ -72,11 +80,8 @@ class Ubuntu(pl.LightningDataModule):
     def test_dataloader(self):
         return self.val_dataloader()
 
-    def process_data(self, documents_folder):
-        # separator = "<n>"
-        # separator_id = self.tokenizer.encode(separator)[0]
-
-        dataset = []
+    def process_and_tokenize(self, documents_folder):
+        dataset = {"docid": [], "tokenized": [], "candidates": []}
 
         for (dirpath, _, filenames) in os.walk(documents_folder):
             for filename in filenames:
@@ -84,13 +89,66 @@ class Ubuntu(pl.LightningDataModule):
                     with open(os.path.join(dirpath, filename), "r") as f:
                         data = json.load(f)
 
-                    data = data["contents"].replace("\n", "<n>")
-                    text = re.split("<n>(?=(?:USER: )|(?:AGENT: ))", data)
+                    text = data["contents"].replace("\n", "<n>")
+                    text = re.split("<n>(?=(?:USER: )|(?:AGENT: ))", text)
 
                     tokenized = self.tokenizer(text)["input_ids"]
-                    dataset.append(tokenized)
+
+                    # Remove eos_token from tokenized lines
+                    for line in tokenized:
+                        del line[-1]
+
+                    # Retrieve candidates
+                    for idx in range(1, len(text), 2):
+                        question = "\n".join(text[:idx])
+                        hits = ssearcher.search(question)[: self.hparams.max_candidates]
+                        import pdb
+
+                        pdb.set_trace()
+                        # candidates = ssearcher.search(question)[: self.hparams.max_candidates]
+
+                    dataset["docid"].append(data["id"])
+                    dataset["tokenized"].append(tokenized)
 
         return dataset
+
+    def generate_samples(self, docid, tokenized):
+        input_ids = []
+        labels = []
+        candidates = []
+
+        separator = "<n>"
+        separator_id = torch.tensor(
+            [self.tokenizer.convert_tokens_to_ids(separator)],
+            dtype=tokenized[0][0].dtype,
+        )
+        separator_id = itertools.cycle([separator_id])
+
+        eos_token_id = torch.tensor(
+            [self.tokenizer.eos_token_id], dtype=tokenized[0][0].dtype
+        )
+
+        ssearcher = SimpleSearcher("data/ubuntu/index/sparse")
+
+        for i, interaction in tqdm.tqdm(
+            zip(docid, tokenized), desc="Generating samples"
+        ):
+            for idx in range(1, len(interaction), 2):
+                # Select question with appropriate history
+                question = interaction[:idx]
+                # Separate lines using newline token
+                question = list(itertools.chain(*zip(question, separator_id)))
+                question[-1] = eos_token_id
+                question = torch.cat(question)
+                # TODO: ADD RETRIEVED CANDIDATES
+
+                answer = interaction[idx]
+                answer = torch.cat([answer, eos_token_id])
+
+                input_ids.append(question)
+                labels.append(answer)
+
+        return {"input_ids": input_ids, "labels": labels}
 
 
 def get_int_type(vocab_size):
@@ -126,31 +184,44 @@ class AdaptiveBatch:
         }
 
 
+def save_dataset(dataset, filename, vocab_size=None):
+    if vocab_size is not None:
+        compressed_type = get_int_type(vocab_size)
+    else:
+        compressed_type = torch.long
+
+    dataset["tokenized"] = [
+        [torch.tensor(line, dtype=compressed_type) for line in interaction]
+        for interaction in dataset["tokenized"]
+    ]
+
+    torch.save(dataset, filename)
+
+    return dataset
+
+
+def load_dataset(filename):
+    return torch.load(filename)
+
+
 class CustomDataset(torch.utils.data.Dataset):
     def __init__(
         self,
-        tokenized,
+        input_ids,
+        labels,
         vocab_size=None,
-        filename=None,
+        max_input_length=None,
+        max_output_length=None,
     ):
-        if filename is not None:
-            self.uncompressed_type, self.input_ids, self.labels = torch.load(filename)
-            self.compressed_type = self.input_ids[0].type()
-            self.labels = type_list(self.labels, self.uncompressed_type)
+        self.uncompressed_type = torch.long
+
+        if vocab_size is not None:
+            self.compressed_type = get_int_type(vocab_size)
         else:
-            self.uncompressed_type = torch.long
+            self.compressed_type = self.uncompressed_type
 
-            if vocab_size is not None:
-                self.compressed_type = get_int_type(vocab_size)
-            else:
-                self.compressed_type = self.uncompressed_type
-
-            self.input_ids = [
-                torch.tensor(sample, dtype=self.compressed_type) for sample in src
-            ]
-            self.labels = [
-                torch.tensor(sample, dtype=self.uncompressed_type) for sample in tgt
-            ]
+        self.input_ids = type_list(input_ids, self.compressed_type)
+        self.labels = type_list(labels, self.uncompressed_type)
 
         if max_input_length is not None:
             self.input_ids = [
@@ -169,21 +240,9 @@ class CustomDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.input_ids)
 
-    def save(self, filename):
-        torch.save(
-            (
-                self.uncompressed_type,
-                self.input_ids,
-                type_list(self.labels, self.compressed_type),
-            ),
-            filename,
-        )
 
-
-def pairwise(iterable):
-    a, b = itertools.tee(iterable)
-    next(b, None)
-    return zip(a, b)
+def type_list(list_tensors, new_type):
+    return [x.type(new_type) for x in list_tensors]
 
 
 if __name__ == "__main__":

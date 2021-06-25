@@ -12,4 +12,5 @@ learning_rate: None
 
 # Data
 dataset: data/ubuntu
+split: 0.95
 batch_size: 2
