@@ -1,4 +1,5 @@
 import csv
+import itertools
 import json
 import os
 
@@ -27,10 +28,23 @@ def read_files(data_folder):
 
 
 def format_text(data):
-    username = data["From"].iloc[0]
-    sender = ["USER:" if sender == username else "AGENT:" for sender in data["From"]]
-    text = data.iloc[:, -1].to_list()
-    text = "\n".join([" ".join(line) for line in zip(sender, text)])
+    count = [sum(1 for _ in group) for _, group in itertools.groupby(data["From"])]
+    iterator = iter(data["Message"])
+    text = [[next(iterator) for _ in range(length)] for length in count]
+
+    # If the first message is from the agent, delete it
+    if data["To"].iloc[0]:
+        del text[0]
+
+    # If there is an ending message from the user, delete it
+    if len(text) % 2 != 0:
+        del text[-1]
+
+    senders = itertools.cycle(["USER: ", "AGENT: "])
+    text = "\n".join(
+        sender + "\n".join(messages) for sender, messages in zip(senders, text)
+    )
+
     return text
 
 
@@ -40,8 +54,10 @@ def write_json(filename, data):
 
 
 if __name__ == "__main__":
-    data_folder = "/tmp/gecr/ubuntu-ranking-dataset-creator/src/dialogs"
-    output_folder = "/tmp/gecr/pegasus-qa/data/ubuntu/documents"
+    # data_folder = "/tmp/gecr/ubuntu-ranking-dataset-creator/src/dialogs"
+    # output_folder = "/tmp/gecr/pegasus-qa/data/ubuntu/documents"
+    data_folder = "/home/gonced8/code/ubuntu-ranking-dataset-creator/src/dialogs"
+    output_folder = "/home/gonced8/code/pegasus-qa/data/ubuntu/documents"
 
     i = 0
 

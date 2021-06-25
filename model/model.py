@@ -15,11 +15,9 @@ class Pegasus(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(hparams)
 
-        self.tokenizer = PegasusTokenizer.from_pretrained(
-            self.hparams.model_name, cache_dir=".cache/"
-        )
+        self.tokenizer = PegasusTokenizer.from_pretrained(self.hparams.model_name)
         self.model = PegasusForConditionalGeneration.from_pretrained(
-            self.hparams.model_name, cache_dir=".cache/"
+            self.hparams.model_name
         )
         self.rouge_metric = load_metric("rouge", cache_dir=".cache/")
 
