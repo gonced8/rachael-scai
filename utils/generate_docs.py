@@ -54,10 +54,8 @@ def write_json(filename, data):
 
 
 if __name__ == "__main__":
-    # data_folder = "/tmp/gecr/ubuntu-ranking-dataset-creator/src/dialogs"
-    # output_folder = "/tmp/gecr/pegasus-qa/data/ubuntu/documents"
-    data_folder = "/home/gonced8/code/ubuntu-ranking-dataset-creator/src/dialogs"
-    output_folder = "/home/gonced8/code/pegasus-qa/data/ubuntu/documents"
+    data_folder = "../ubuntu-ranking-dataset-creator/src/dialogs"
+    output_folder = "data/ubuntu/documents"
 
     i = 0
 

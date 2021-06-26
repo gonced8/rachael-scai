@@ -13,4 +13,6 @@ learning_rate: None
 # Data
 dataset: data/ubuntu
 split: 0.95
+max_candidates: 20
+max_workers: 32
 batch_size: 2

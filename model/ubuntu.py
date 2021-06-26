@@ -1,15 +1,17 @@
-import itertools
+from collections import defaultdict
+from itertools import chain, cycle
 import json
+import multiprocessing as mp
 import os
 import re
 
-# from tqdm.contrib.concurrent import process_map
 from pyserini.search import SimpleSearcher
+import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader
 import tqdm
+from tqdm.contrib.concurrent import process_map, thread_map
 from transformers import PreTrainedTokenizer
-import pytorch_lightning as pl
 
 
 class Ubuntu(pl.LightningDataModule):
@@ -28,13 +30,15 @@ class Ubuntu(pl.LightningDataModule):
             dataset = load_dataset(dataset_path)
 
         else:
-            print(f"Tokenizing dataset. This might take a while...")
-            documents_folder = os.path.join(self.hparams.dataset, "documents")
+            print(f"Preparing dataset. This might take a while...")
+            documents = os.scandir(os.path.join(self.hparams.dataset, "documents"))
+            filepaths = [doc.path for doc in documents]
 
-            dataset = self.process_and_tokenize(documents_folder)
-            print(f"{len(dataset['docid'])} conversations")
+            dataset = self.tokenize(filepaths)
+            dataset = self.retrieve_candidates(dataset)
+            print(f"{len(dataset)} conversations")
 
-            dataset = save_dataset(dataset, dataset_path)
+            dataset = save_dataset(dataset, dataset_path, self.tokenizer.vocab_size)
             print(f"Saved tokenized dataset to {dataset_path}")
 
         dataset = self.generate_samples(**dataset)
@@ -80,66 +84,123 @@ class Ubuntu(pl.LightningDataModule):
     def test_dataloader(self):
         return self.val_dataloader()
 
-    def process_and_tokenize(self, documents_folder):
-        dataset = {"docid": [], "tokenized": [], "candidates": []}
+    def tokenize(self, filepaths):
+        max_workers = min(self.hparams.max_workers, os.cpu_count())
+        chunksize = min(1000, max(1, len(filepaths) // max_workers))
 
-        for (dirpath, _, filenames) in os.walk(documents_folder):
-            for filename in filenames:
-                if ".json" in filename:
-                    with open(os.path.join(dirpath, filename), "r") as f:
-                        data = json.load(f)
+        print("Tokenizing files")
+        dataset = process_map(
+            self.tokenize_worker,
+            filepaths,
+            max_workers=max_workers,
+            chunksize=chunksize,
+        )
 
-                    text = data["contents"].replace("\n", "<n>")
-                    text = re.split("<n>(?=(?:USER: )|(?:AGENT: ))", text)
+        return [x for x in dataset if x is not None]
 
-                    tokenized = self.tokenizer(text)["input_ids"]
+    def tokenize_worker(self, filepath):
+        with open(filepath, "r") as f:
+            data = json.load(f)
 
-                    # Remove eos_token from tokenized lines
-                    for line in tokenized:
-                        del line[-1]
+        if not data["contents"]:
+            return None
 
-                    # Retrieve candidates
-                    for idx in range(1, len(text), 2):
-                        question = "\n".join(text[:idx])
-                        hits = ssearcher.search(question)[: self.hparams.max_candidates]
-                        import pdb
+        text = data["contents"].replace("\n", "<n>")
+        text = re.split("<n>(?=(?:USER: )|(?:AGENT: ))", text)
 
-                        pdb.set_trace()
-                        # candidates = ssearcher.search(question)[: self.hparams.max_candidates]
+        tokenized = self.tokenizer(text)["input_ids"]
+        queries = ["\n".join(text[:idx]) for idx in range(1, len(text), 2)]
 
-                    dataset["docid"].append(data["id"])
-                    dataset["tokenized"].append(tokenized)
+        # Remove eos_token from tokenized lines
+        for line in tokenized:
+            del line[-1]
+
+        return {
+            "docid": data["id"],
+            "tokenized": tokenized,
+            "queries": queries,
+        }
+
+    def retrieve_candidates(self, dataset):
+        ssearcher = SimpleSearcher("data/ubuntu/index/sparse")
+
+        for i, interaction in enumerate(dataset):
+            if not isinstance(interaction, dict):
+                print(i, interaction)
+
+        q_ids = [
+            interaction["docid"] + "-" + str(i)
+            for interaction in dataset
+            for i in range(len(interaction["queries"]))
+        ]
+        queries = [query for interaction in dataset for query in interaction["queries"]]
+
+        candidates = defaultdict(list)
+
+        """
+        print("Number of queries:", len(queries))
+
+        hits = ssearcher.batch_search(
+            queries, q_ids, self.hparams.max_candidates, max_workers
+        )
+
+        for q_id in q_ids:
+            docid = q_id.split("-")[0]
+            candidates[docid].append(
+                [hit.docid for hit in hits[q_id] if hit.docid != docid]
+            )
+        """
+
+        max_workers = min(self.hparams.max_workers, os.cpu_count())
+        chunksize = min(
+            max(1000, len(queries)) // 100, max(1, len(queries) // max_workers)
+        )
+
+        for i in tqdm.tqdm(
+            range(0, len(queries), chunksize), desc="Retrieving candidates"
+        ):
+            sub_queries = queries[i : i + chunksize]
+            sub_q_ids = q_ids[i : i + chunksize]
+
+            hits = ssearcher.batch_search(
+                sub_queries, sub_q_ids, self.hparams.max_candidates, max_workers
+            )
+
+            for q_id in sub_q_ids:
+                docid = q_id.split("-")[0]
+                candidates[docid].append(
+                    [hit.docid for hit in hits[q_id] if hit.docid != docid]
+                )
+
+        for interaction in dataset:
+            interaction["candidates"] = candidates[interaction["docid"]]
 
         return dataset
 
-    def generate_samples(self, docid, tokenized):
+    def generate_samples(self, tokenized, candidates):
         input_ids = []
         labels = []
-        candidates = []
 
         separator = "<n>"
         separator_id = torch.tensor(
             [self.tokenizer.convert_tokens_to_ids(separator)],
             dtype=tokenized[0][0].dtype,
         )
-        separator_id = itertools.cycle([separator_id])
+        separator_id = cycle([separator_id])
 
         eos_token_id = torch.tensor(
             [self.tokenizer.eos_token_id], dtype=tokenized[0][0].dtype
         )
 
-        ssearcher = SimpleSearcher("data/ubuntu/index/sparse")
-
-        for i, interaction in tqdm.tqdm(
-            zip(docid, tokenized), desc="Generating samples"
-        ):
-            for idx in range(1, len(interaction), 2):
+        for interaction in tqdm.tqdm(tokenized, desc="Generating samples"):
+            for i, idx in enumerate(range(1, len(interaction), 2)):
                 # Select question with appropriate history
                 question = interaction[:idx]
                 # Separate lines using newline token
-                question = list(itertools.chain(*zip(question, separator_id)))
+                question = list(chain(*zip(question, separator_id)))
                 question[-1] = eos_token_id
                 question = torch.cat(question)
+                # TODO: PROTECT FOR WHEN QUESTION LENGTH>1024
                 # TODO: ADD RETRIEVED CANDIDATES
 
                 answer = interaction[idx]
@@ -190,14 +251,18 @@ def save_dataset(dataset, filename, vocab_size=None):
     else:
         compressed_type = torch.long
 
-    dataset["tokenized"] = [
-        [torch.tensor(line, dtype=compressed_type) for line in interaction]
-        for interaction in dataset["tokenized"]
+    new_dataset = {}
+
+    new_dataset["tokenized"] = [
+        [torch.tensor(line, dtype=compressed_type) for line in interaction["tokenized"]]
+        for interaction in dataset
     ]
 
-    torch.save(dataset, filename)
+    new_dataset["candidates"] = [interaction["candidates"] for interaction in dataset]
 
-    return dataset
+    torch.save(new_dataset, filename)
+
+    return new_dataset
 
 
 def load_dataset(filename):
