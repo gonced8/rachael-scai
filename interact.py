@@ -7,23 +7,17 @@ from pyserini.dsearch import SimpleDenseSearcher, TctColBertQueryEncoder
 from pyserini.hsearch import HybridSearcher
 import torch
 import streamlit as st
+from unidecode import unidecode
 
 from model.model import Pegasus
 
 
 @st.cache(allow_output_mutation=True, suppress_st_warning=True)
 def init():
-    filename = "checkpoints/version_0/checkpoints/best.ckpt"
-    if os.path.isfile(filename):
-        model = Pegasus.load_from_checkpoint(
-            filename,
-            hparams_file="checkpoints/version_0/hparams.yaml",
-        )
-    else:
-        with open("config/example.yaml", "r") as f:
-            hparams = yaml.full_load(f)
-        hparams["model_name"] = "gonced8/pegasus-qa"
-        model = Pegasus(hparams)
+    with open("config/example.yaml", "r") as f:
+        hparams = yaml.full_load(f)
+    hparams["model_name"] = "gonced8/pegasus-qa"
+    model = Pegasus(hparams)
 
     hparams = model.hparams
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -73,6 +67,8 @@ if st.button("Compute"):
         context = context.encode("ascii", "ignore").decode("utf8")
 
     src = (question + "\n" + context).replace("\n", "<n>")
+    src = unidecode(src)
+
     batch = tokenizer(
         src,
         truncation=True,

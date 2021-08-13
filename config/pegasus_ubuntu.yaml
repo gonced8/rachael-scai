@@ -1,18 +1,19 @@
 # Trainer
-max_epochs: 5
-accumulate_grad_batches: 128
+max_epochs: 10
+#accumulate_grad_batches: 128
+accumulate_grad_batches: 42
 val_check_interval: 0.1
 
 # Model
 model_name: google/pegasus-large
 max_input_length: 1024
 max_output_length: 256
-learning_rate: None
-#1e-4
+#learning_rate: None
+learning_rate: 1e-4
 
 # Data
 dataset: data/ubuntu
-split: 0.95
+split: 0.99
 max_candidates: 20
-max_workers: 32
+max_workers: 24
 batch_size: 2

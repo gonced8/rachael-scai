@@ -61,6 +61,11 @@ if __name__ == "__main__":
 
     for doc_id, data in read_files(data_folder):
         text = format_text(data)
+
+        # Ignore empty chats
+        if not text:
+            continue
+
         doc = {"id": doc_id, "contents": text}
         output_filename = os.path.join(output_folder, doc_id + ".json")
         write_json(output_filename, doc)

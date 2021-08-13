@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 
 from datasets import load_metric
 from transformers import (
@@ -20,6 +21,20 @@ class Pegasus(pl.LightningModule):
             self.hparams.model_name
         )
         self.rouge_metric = load_metric("rouge", cache_dir=".cache/")
+
+        # self.freeze_embeds()
+
+    def freeze_params(self, model: nn.Module):
+        """Set requires_grad=False for each of model.parameters()"""
+        for par in model.parameters():
+            par.requires_grad = False
+
+    def freeze_embeds(self):
+        """Freeze token embeddings and positional embeddings for bart, just token embeddings for t5."""
+        self.freeze_params(self.model.model.shared)
+        for d in [self.model.model.encoder, self.model.model.decoder]:
+            self.freeze_params(d.embed_positions)
+            self.freeze_params(d.embed_tokens)
 
     def forward(self, input_ids, labels=None):
         output = self.model(
@@ -115,17 +130,12 @@ class Pegasus(pl.LightningModule):
             relative_step=flag,
             warmup_init=flag,
         )
+
         # scheduler = {
-        #    "scheduler": OneCycleLR(
-        #        optimizer,
-        #        max_lr=1e-4,
-        #        total_steps=30,
-        #        div_factor=10,
-        #        final_div_factor=10,
-        #        verbose=True,
-        #    ),
-        #    "interval": "epoch",
+        #    "scheduler": AdafactorSchedule(optimizer),
+        #    "interval": "step",
         # }
+
         # return [optimizer], [scheduler]
         return optimizer
 
