@@ -1,2 +1,2 @@
-# pegasus-trec-cast
-Conditional answer generation using the PEGASUS model on Conversational QA.
+# rachael-scai
+Participation of group Rachael for SCAI 2021. 
