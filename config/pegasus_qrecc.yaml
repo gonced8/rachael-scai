@@ -13,8 +13,8 @@ learning_rate: 1e-4
 # Data
 data_name: data/qrecc
 train_dataset: data/qrecc/scai-qrecc21-training-turns.json
-val_dataset: [questions: data/qrecc/scai-qrecc21-toy-questions.json, answers: data/qrecc/scai-qrecc21-toy-ground-truth.json]
-test_dataset: [questions: data/qrecc/scai-qrecc21-test-questions.json]
+val_dataset: [data/qrecc/scai-qrecc21-toy-questions.json, data/qrecc/scai-qrecc21-toy-ground-truth.json]
+test_dataset: [data/qrecc/scai-qrecc21-test-questions.json]
 passages: data/qrecc/collection-paragraph/index/sparse
 max_history: 3
 max_candidates: 3

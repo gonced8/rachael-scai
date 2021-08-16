@@ -1,0 +1,16 @@
+--find-links https://download.pytorch.org/whl/torch_stable.html
+datasets==1.11.0
+faiss-cpu
+matplotlib
+nltk
+numpy
+pandas
+pyserini
+pytorch-lightning==1.4.2
+rouge_score
+sentencepiece==0.1.96
+streamlit==0.86.0
+torch==1.9.0+cpu
+tqdm
+transformers==4.9.2
+unidecode

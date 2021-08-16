@@ -18,55 +18,100 @@ from transformers import PreTrainedTokenizer
 class QReCC(pl.LightningDataModule):
     def __init__(self, hparams, tokenizer: PreTrainedTokenizer):
         super().__init__()
-        self.save_hyperparameters(hparams)
+        self.hparams.update(hparams)
         self.tokenizer = tokenizer
 
     def prepare_data(self):
+        # TODO: read validate and test datasets
         datasets = {
             "train": self.hparams.train_dataset,
+            "validate": self.hparams.train_dataset,
             # "validate": self.hparams.val_dataset,
             # "test": self.hparams.test_dataset,
         }
 
         for mode, dataset_path in datasets.items():
-            tokenized_path = self.get_tokenized_path(dataset_path)
+            # Work with list of filenames
+            if isinstance(dataset_path, str):
+                dataset_path = [dataset_path]
+
+            tokenized_path = self.get_tokenized_path(mode, dataset_path)
 
             if os.path.isfile(tokenized_path):
-                print(f"Found {dataset_path} tokenized. Loading from {tokenized_path}")
-                dataset = self.CustomDataset(
-                    max_input_length=self.hparams.max_input_length,
-                    max_output_length=self.hparams.max_output_length,
+                print(f"Found {mode} dataset tokenized. Loading from {tokenized_path}")
+                dataset = CustomDataset(
                     filename=tokenized_path,
                 )
 
             else:
-                if os.path.isfile(dataset_path):
+                if all(os.path.isfile(path) for path in dataset_path):
                     print(f"Preparing dataset. This might take a while...")
 
-                    with open(dataset_path, "r") as f:
-                        data = json.load(f)
+                    # Read dataset_path files and merge into a single data list
+                    data = None
+                    for path in dataset_path:
+                        with open(path, "r") as f:
+                            file_data = json.load(f)
 
+                        if data is None:
+                            data = file_data
+                        else:
+                            for sample1, sample2 in zip(data, file_data):
+                                if (
+                                    sample1["Conversation_no"]
+                                    == sample2["Conversation_no"]
+                                    and sample1["Turn_no"] == sample2["Turn_no"]
+                                ):
+                                    sample1.update(sample2)
+                                else:
+                                    print(f"Datasets of {mode} are inconsistent.")
+
+                    # TODO: REMOVE THIS LINE
+                    data = data[:4]
+
+                    # Build samples to be used for retrieval
                     data = self.build_samples_before_retrieval(data)
+
+                    # Retrieve relavant passages
+                    from pyserini.search import SimpleSearcher
+
+                    ssearcher = SimpleSearcher(self.hparams.passages)
+
                     data = self.retrieve_candidates(
                         data,
-                        self.hparams.passages,
+                        ssearcher,
                         self.hparams.max_candidates,
                         self.hparams.max_workers,
                     )
-                    data = self.build_samples_after_retrieval(data)
 
-                    dataset = self.tokenize(data)
+                    # Build samples considering retrieved passages
+                    data = self.build_samples_after_retrieval(data, ssearcher)
 
-                    print(f"{len(dataset)} conversations")
+                    # Tokenize
+                    tokenized = self.tokenize(data)
 
-                    dataset = save_dataset(
-                        dataset, dataset_path, self.tokenizer.vocab_size
+                    print(f"{len(tokenized)} conversations")
+
+                    dataset = CustomDataset(
+                        **tokenized, vocab_size=self.tokenizer.vocab_size
                     )
-                    print(f"Saved tokenized dataset to {dataset_path}")
+
+                    dataset.save(tokenized_path)
+                    print(f"Saved tokenized dataset to {tokenized_path}")
                 else:
                     print(
                         f"Dataset not found at {dataset_path}. Ignoring this dataset."
                     )
+                    continue
+
+            if mode == "train":
+                self.train_dataset = dataset
+            elif mode == "validate":
+                self.val_dataset = dataset
+            elif mode == "test":
+                self.test_dataset = dataset
+            else:
+                print("Unrecognized mode. Only supports train, validate, and test.")
 
     def train_dataloader(self):
         return DataLoader(
@@ -98,8 +143,8 @@ class QReCC(pl.LightningDataModule):
             pin_memory=bool(torch.cuda.device_count()),
         )
 
-    def get_tokenized_path(self, filename):
-        hash_value = hash_file(filename)[:4]
+    def get_tokenized_path(self, mode, filenames):
+        hash_value = hash_file(filenames)[:4]
         settings = "{:04d}{:04d}{:02d}{:02d}".format(
             self.hparams.max_input_length,
             self.hparams.max_output_length,
@@ -108,7 +153,7 @@ class QReCC(pl.LightningDataModule):
         )
 
         tokenized_path = (
-            os.path.splitext(filename)[0]
+            os.path.join(os.path.dirname(filenames[0]), mode)
             + "_tokenized_"
             + hash_value
             + "_"
@@ -118,40 +163,48 @@ class QReCC(pl.LightningDataModule):
 
         return tokenized_path
 
-    def tokenize(self, filepaths):
+    def tokenize(self, data):
         max_workers = min(self.hparams.max_workers, os.cpu_count())
-        chunksize = min(1000, max(1, len(filepaths) // max_workers))
+        chunksize = min(1000, max(1, len(data) // max_workers))
 
-        worker_fn = partial(self.tokenize_worker, self.tokenizer)
+        worker_fn = partial(
+            self.tokenize_worker,
+            self.tokenizer,
+            self.hparams.max_input_length,
+            self.hparams.max_output_length,
+        )
 
-        print("Tokenizing files")
+        print("Tokenizing samples")
         dataset = process_map(
             worker_fn,
-            filepaths,
+            data,
             max_workers=max_workers,
             chunksize=chunksize,
         )
 
-        docids = {x.pop(0): i for i, x in enumerate(dataset)}
+        # Convert to dict
+        dataset = [list(i) for i in zip(*dataset)]  # transpose
+        dataset = {"input_ids": dataset[0], "labels": dataset[1]}
 
-        return docids, dataset
+        return dataset
 
     @staticmethod
-    def tokenize_worker(tokenizer, filepath):
-        with open(filepath, "r") as f:
-            data = json.load(f)
+    def tokenize_worker(tokenizer, max_input_length, max_output_length, sample):
+        src = sample["Model_input"]
+        tgt = sample["Truth_answer"]
 
-        text = data["contents"].replace("\n", "<n>")
-        text = re.split("<n>(?=(?:USER: )|(?:AGENT: ))", text)
+        # TODO: replace("\n", "<n>")
 
-        tokenized = tokenizer(text)["input_ids"]
-        queries = ["\n".join(text[:idx]) for idx in range(1, len(text), 2)]
+        tokenized = [
+            tokenizer.encode(
+                src, truncation=True, max_length=max_input_length, return_tensors="pt"
+            ),
+            tokenizer.encode(
+                tgt, truncation=True, max_length=max_output_length, return_tensors="pt"
+            ),
+        ]
 
-        # Remove eos_token from tokenized lines
-        for line in tokenized:
-            del line[-1]
-
-        return [data["id"], tokenized, queries]
+        return tokenized
 
     @staticmethod
     def build_samples_before_retrieval(data):
@@ -163,29 +216,27 @@ class QReCC(pl.LightningDataModule):
         return data
 
     @staticmethod
-    def build_samples_after_retrieval(data):
+    def build_samples_after_retrieval(data, ssearcher):
         for sample in tqdm.tqdm(data, desc="Building samples after retrieval"):
-            sample["Model_input"] = sample["Model_input"]
+            docs = [ssearcher.doc(docid) for docid in sample["Passages"]]
+            passages = [json.loads(doc.raw())["contents"] for doc in docs]
+            sample["Model_input"] = "\n\n".join([sample["Model_input"]] + passages)
 
         return data
 
     @staticmethod
-    def retrieve_candidates(data, passages, max_candidates=1, max_workers=16):
-        from pyserini.search import SimpleSearcher
-
-        ssearcher = SimpleSearcher(passages)
+    def retrieve_candidates(data, ssearcher, max_candidates=1, max_workers=16):
         max_workers = min(max_workers, os.cpu_count())
 
         queries = [sample["Model_input"] for sample in data]
-        q_ids = [i for i in range(len(data))]
+        q_ids = [str(i) for i in range(len(data))]
 
         print("Number of queries:", len(queries))
 
         chunksize = min(
             max(1000, len(queries) // 10), max(1, len(queries) // max_workers)
         )
-
-        retrieved = []
+        chunksize = 2
 
         for i in tqdm.tqdm(
             range(0, len(queries), chunksize),
@@ -200,21 +251,9 @@ class QReCC(pl.LightningDataModule):
                 sub_queries, sub_q_ids, max_candidates, max_workers
             )
 
-            import pdb
-
-            pdb.set_trace()
-
-            hits.sort(key=lambda hit: hit)
-
-            for q_id in sub_q_ids:
-                i = int(q_id.split("_")[0])
-                candidates[i].append(
-                    [
-                        docids[hit.docid]
-                        for hit in hits.get(q_id, [])
-                        if docids[hit.docid] != i
-                    ]
-                )
+            # Update data with retrieved passages
+            for q_id, candidates in hits.items():
+                data[int(q_id)]["Passages"] = [hit.docid for hit in candidates]
 
         return data
 
@@ -238,7 +277,7 @@ def type_list(list_tensors, new_type):
 
 
 # From https://www.geeksforgeeks.org/compare-two-files-using-hashing-in-python/
-def hash_file(filename):
+def hash_file(filenames):
     # A arbitrary (but fixed) buffer
     # size (change accordingly)
     # 65536 = 65536 bytes = 64 kilobytes
@@ -249,21 +288,22 @@ def hash_file(filename):
 
     # Opening the file provided as
     # the first commandline arguement
-    with open(filename, "rb") as f:
-        while True:
-            # reading data = BUF_SIZE from
-            # the file and saving it in a
-            # variable
-            data = f.read(BUF_SIZE)
+    for filename in filenames:
+        with open(filename, "rb") as f:
+            while True:
+                # reading data = BUF_SIZE from
+                # the file and saving it in a
+                # variable
+                data = f.read(BUF_SIZE)
 
-            # True if eof = 1
-            if not data:
-                break
+                # True if eof = 1
+                if not data:
+                    break
 
-            # Passing that data to that sh256 hash
-            # function (updating the function with
-            # that data)
-            sha256.update(data)
+                # Passing that data to that sh256 hash
+                # function (updating the function with
+                # that data)
+                sha256.update(data)
 
     # sha256.hexdigest() hashes all the input
     # data passed to the sha256() via sha256.update()
@@ -310,31 +350,25 @@ def load_dataset(filename):
 class CustomDataset(torch.utils.data.Dataset):
     def __init__(
         self,
-        input_ids,
-        labels,
+        input_ids=None,
+        labels=None,
         vocab_size=None,
-        max_input_length=None,
-        max_output_length=None,
+        filename=None,
     ):
-        self.uncompressed_type = torch.long
-
-        if vocab_size is not None:
-            self.compressed_type = get_int_type(vocab_size)
+        if filename is not None:
+            self.uncompressed_type, self.input_ids, self.labels = torch.load(filename)
+            self.compressed_type = self.input_ids[0].type()
+            self.labels = type_list(self.labels, self.uncompressed_type)
         else:
-            self.compressed_type = self.uncompressed_type
+            self.uncompressed_type = torch.long
 
-        self.input_ids = type_list(input_ids, self.compressed_type)
-        self.labels = type_list(labels, self.uncompressed_type)
+            if vocab_size is not None:
+                self.compressed_type = get_int_type(vocab_size)
+            else:
+                self.compressed_type = self.uncompressed_type
 
-        if max_input_length is not None:
-            self.input_ids = [
-                sample[: min(len(sample), max_input_length)]
-                for sample in self.input_ids
-            ]
-        if max_output_length is not None:
-            self.labels = [
-                sample[: min(len(sample), max_output_length)] for sample in self.labels
-            ]
+            self.input_ids = type_list(input_ids, self.compressed_type)
+            self.labels = type_list(labels, self.uncompressed_type)
 
     def __getitem__(self, idx):
         item = {"input_ids": self.input_ids[idx], "labels": self.labels[idx]}
@@ -342,6 +376,16 @@ class CustomDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.input_ids)
+
+    def save(self, filename):
+        torch.save(
+            (
+                self.uncompressed_type,
+                self.input_ids,
+                type_list(self.labels, self.compressed_type),
+            ),
+            filename,
+        )
 
 
 if __name__ == "__main__":
@@ -356,6 +400,6 @@ if __name__ == "__main__":
     hparams = SimpleNamespace(**hparams)
     tokenizer = PegasusTokenizer.from_pretrained(hparams.model_name)
 
-    data = Ubuntu(hparams, tokenizer)
+    data = QReCC(hparams, tokenizer)
     data.prepare_data()
     data.setup()
