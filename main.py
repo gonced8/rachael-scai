@@ -5,18 +5,18 @@ from model import get_model, get_data
 from trainer import build_trainer
 
 
-def main(args, hparams):
+def main(args, conf):
     if args.mode == "train":
         if args.from_checkpoint:
             print(f"Training from checkpoint: {args.from_checkpoint}")
-            model = get_model(hparams.model_name).load_from_checkpoint(
+            model = get_model(conf["model_name"]).load_from_checkpoint(
                 args.from_checkpoint
             )
         else:
             print("No checkpoint provided. Training from scratch.")
-            model = get_model(hparams.model_name)(hparams)
+            model = get_model(conf["model_name"])(conf)
 
-        data = get_data(hparams.data_name)(model.hparams, model.tokenizer)
+        data = get_data(conf["data_name"])(model.hparams, model.tokenizer)
 
         trainer = build_trainer(model.hparams)
         trainer.fit(model, data)
@@ -29,10 +29,13 @@ def main(args, hparams):
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
+    parser = ArgumentParser(description="Train and test model.")
 
     parser.add_argument(
-        "--config", type=str, help="Configuration file for training the model."
+        "--config",
+        type=str,
+        required=True,
+        help="Configuration file for training the model.",
     )
     parser.add_argument(
         "--mode",
@@ -49,8 +52,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if args.config:
-        with open(args.config, "r") as f:
-            hparams = yaml.full_load(f)
+    with open(args.config, "r") as f:
+        conf = yaml.full_load(f)
 
-    main(args, hparams)
+    main(args, conf)

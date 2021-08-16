@@ -1,16 +1,16 @@
 --find-links https://download.pytorch.org/whl/torch_stable.html
-datasets==1.6.2
+datasets==1.11.0
 faiss-cpu
 matplotlib
 nltk
 numpy
 pandas
 pyserini
-pytorch-lightning==1.2.10
+pytorch-lightning==1.4.2
 rouge_score
-sentencepiece==0.1.95
-streamlit==0.81.1
-torch==1.8.1+cu111
+sentencepiece==0.1.96
+streamlit==0.86.0
+torch==1.9.0+cu111
 tqdm
-transformers==4.5.0
+transformers==4.9.2
 unidecode

@@ -12,9 +12,9 @@ import pytorch_lightning as pl
 
 
 class Pegasus(pl.LightningModule):
-    def __init__(self, hparams: dict):
+    def __init__(self, conf: dict):
         super().__init__()
-        self.save_hyperparameters(hparams)
+        self.save_hyperparameters(conf)
 
         self.tokenizer = PegasusTokenizer.from_pretrained(self.hparams.model_name)
         self.model = PegasusForConditionalGeneration.from_pretrained(

@@ -1,0 +1,22 @@
+# Trainer
+max_epochs: 10
+accumulate_grad_batches: 128
+val_check_interval: 0.1
+
+# Model
+model_name: google/pegasus-large
+max_input_length: 1024
+max_output_length: 256
+#learning_rate: None
+learning_rate: 1e-4
+
+# Data
+data_name: data/qrecc
+train_dataset: data/qrecc/scai-qrecc21-training-turns.json
+val_dataset: [questions: data/qrecc/scai-qrecc21-toy-questions.json, answers: data/qrecc/scai-qrecc21-toy-ground-truth.json]
+test_dataset: [questions: data/qrecc/scai-qrecc21-test-questions.json]
+passages: data/qrecc/collection-paragraph/index/sparse
+max_history: 3
+max_candidates: 3
+max_workers: 24
+batch_size: 2

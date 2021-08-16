@@ -1,18 +1,22 @@
 from .pegasus import Pegasus
-from .coqa import  CoQA
+from .coqa import CoQA
 from .ubuntu import Ubuntu
+from .qrecc import QReCC
 
 
 def get_model(model_name):
-    if model_name.lower() == "pegasus":
+    if "pegasus" in model_name.lower():
         return Pegasus
-    else
+    else:
         print(f"Unrecognized model name: {model_name}")
 
+
 def get_data(data_name):
-    if data_name.lower() == "coqa":
+    if "coqa" in data_name.lower():
         return CoQA
-    elif data_name.lower() == "ubuntu":
+    elif "ubuntu" in data_name.lower():
         return Ubuntu
-    else
+    elif "qrecc" in data_name.lower():
+        return QReCC
+    else:
         print(f"Unrecognized model name: {model_name}")
