@@ -25,7 +25,6 @@ class QReCC(pl.LightningDataModule):
         # TODO: read validate and test datasets
         datasets = {
             "train": self.hparams.train_dataset,
-            "validate": self.hparams.train_dataset,
             # "validate": self.hparams.val_dataset,
             # "test": self.hparams.test_dataset,
         }
@@ -44,7 +43,21 @@ class QReCC(pl.LightningDataModule):
                 )
 
             else:
-                if all(os.path.isfile(path) for path in dataset_path):
+                retrieved_path = tokenized_path.replace("tokenized", "retrieved")
+
+                # Retrieval model
+                from pyserini.search import SimpleSearcher
+
+                ssearcher = SimpleSearcher(self.hparams.passages)
+
+                # Either load dataset with retrieved passages
+                if os.path.isfile(retrieved_path):
+                    print(f"Loading dataset from {retrieved_path}...")
+                    with open(retrieved_path, "r") as f:
+                        data = json.load(f)
+
+                # Or load dataset and retrieve them
+                elif all(os.path.isfile(path) for path in dataset_path):
                     print(f"Preparing dataset. This might take a while...")
 
                     # Read dataset_path files and merge into a single data list
@@ -66,17 +79,10 @@ class QReCC(pl.LightningDataModule):
                                 else:
                                     print(f"Datasets of {mode} are inconsistent.")
 
-                    # TODO: REMOVE THIS LINE
-                    data = data[:4]
-
                     # Build samples to be used for retrieval
                     data = self.build_samples_before_retrieval(data)
 
                     # Retrieve relavant passages
-                    from pyserini.search import SimpleSearcher
-
-                    ssearcher = SimpleSearcher(self.hparams.passages)
-
                     data = self.retrieve_candidates(
                         data,
                         ssearcher,
@@ -84,28 +90,36 @@ class QReCC(pl.LightningDataModule):
                         self.hparams.max_workers,
                     )
 
-                    # Build samples considering retrieved passages
-                    data = self.build_samples_after_retrieval(data, ssearcher)
+                    # Save dataset with retrieved passages
+                    with open(retrieved_path, "w") as f:
+                        json.dump(data, f)
+                    print("Saved dataset with retrieved passages in {retrieved_path}")
 
-                    # Tokenize
-                    tokenized = self.tokenize(data)
-
-                    print(f"{len(tokenized)} conversations")
-
-                    dataset = CustomDataset(
-                        **tokenized, vocab_size=self.tokenizer.vocab_size
-                    )
-
-                    dataset.save(tokenized_path)
-                    print(f"Saved tokenized dataset to {tokenized_path}")
                 else:
                     print(
                         f"Dataset not found at {dataset_path}. Ignoring this dataset."
                     )
                     continue
 
+                # Build samples considering retrieved passages
+                data = self.build_samples_after_retrieval(data, ssearcher)
+
+                # Tokenize
+                tokenized = self.tokenize(data)
+
+                print(f"{len(tokenized)} conversations")
+
+                dataset = CustomDataset(
+                    **tokenized, vocab_size=self.tokenizer.vocab_size
+                )
+
+                dataset.save(tokenized_path)
+                print(f"Saved tokenized dataset to {tokenized_path}")
+
             if mode == "train":
                 self.train_dataset = dataset
+                # TODO: CHANGE THIS
+                self.val_dataset = dataset
             elif mode == "validate":
                 self.val_dataset = dataset
             elif mode == "test":
@@ -236,7 +250,6 @@ class QReCC(pl.LightningDataModule):
         chunksize = min(
             max(1000, len(queries) // 10), max(1, len(queries) // max_workers)
         )
-        chunksize = 2
 
         for i in tqdm.tqdm(
             range(0, len(queries), chunksize),
