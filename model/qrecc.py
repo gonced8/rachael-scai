@@ -22,10 +22,9 @@ class QReCC(pl.LightningDataModule):
         self.tokenizer = tokenizer
 
     def prepare_data(self):
-        # TODO: read validate and test datasets
         datasets = {
             "train": self.hparams.train_dataset,
-            # "validate": self.hparams.val_dataset,
+            "validate": self.hparams.val_dataset,
             # "test": self.hparams.test_dataset,
         }
 
@@ -43,7 +42,7 @@ class QReCC(pl.LightningDataModule):
                 )
 
             else:
-                retrieved_path = tokenized_path.replace("tokenized", "retrieved")
+                retrieved_path = self.get_retrieved_path(mode, dataset_path)
 
                 # Retrieval model
                 from pyserini.search import SimpleSearcher
@@ -101,25 +100,28 @@ class QReCC(pl.LightningDataModule):
                     )
                     continue
 
+                # TODO: REMOVE THIS ######################################################
+                if len(data) > 1000:
+                    data = data[: len(data) // 10]
+
                 # Build samples considering retrieved passages
                 data = self.build_samples_after_retrieval(data, ssearcher)
 
                 # Tokenize
                 tokenized = self.tokenize(data)
-
-                print(f"{len(tokenized)} conversations")
+                # tokenized = self.tokenize2(data)
 
                 dataset = CustomDataset(
                     **tokenized, vocab_size=self.tokenizer.vocab_size
                 )
+
+                print(f"{len(dataset)} samples")
 
                 dataset.save(tokenized_path)
                 print(f"Saved tokenized dataset to {tokenized_path}")
 
             if mode == "train":
                 self.train_dataset = dataset
-                # TODO: CHANGE THIS
-                self.val_dataset = dataset
             elif mode == "validate":
                 self.val_dataset = dataset
             elif mode == "test":
@@ -177,6 +179,24 @@ class QReCC(pl.LightningDataModule):
 
         return tokenized_path
 
+    def get_retrieved_path(self, mode, filenames):
+        hash_value = hash_file(filenames)[:4]
+        settings = "{:02d}{:02d}".format(
+            self.hparams.max_history,
+            self.hparams.max_candidates,
+        )
+
+        retrieved_path = (
+            os.path.join(os.path.dirname(filenames[0]), mode)
+            + "_retrieved_"
+            + hash_value
+            + "_"
+            + settings
+            + ".pt"
+        )
+
+        return retrieved_path
+
     def tokenize(self, data):
         max_workers = min(self.hparams.max_workers, os.cpu_count())
         chunksize = min(1000, max(1, len(data) // max_workers))
@@ -202,30 +222,80 @@ class QReCC(pl.LightningDataModule):
 
         return dataset
 
+    def tokenize2(self, data):
+        src = [sample["Model_input"] for sample in data]
+        tgt = [sample["Truth_answer"] for sample in data]
+
+        if "pegasus" in self.hparams.model_name:
+            src = [sample.replace("\n", "<n>") for sample in scr]
+            tgt = [sample.replace("\n", "<n>") for sample in tgt]
+
+        src_tokenized = []
+        for sample in tqdm.tqdm(src, desc="Tokenizing source..."):
+            src_tokenized.append(
+                self.tokenizer.encode(
+                    src,
+                    truncation=True,
+                    max_length=self.hparams.max_input_length,
+                    return_tensors="pt",
+                )
+            )
+
+        tgt_tokenized = []
+        for sample in tqdm.tqdm(src, desc="Tokenizing target..."):
+            tgt_tokenized.append(
+                self.tokenizer.encode(
+                    tgt,
+                    truncation=True,
+                    max_length=self.hparams.max_output_length,
+                    return_tensors="pt",
+                )
+            )
+
+        dataset = {
+            "input_ids": src_tokenized,
+            "labels": tgt_tokenized,
+        }
+
+        return dataset
+
     @staticmethod
     def tokenize_worker(tokenizer, max_input_length, max_output_length, sample):
         src = sample["Model_input"]
         tgt = sample["Truth_answer"]
 
-        # TODO: replace("\n", "<n>")
+        if "pegasus" in tokenizer.name_or_path:
+            src = src.replace("\n", "<n>")
+            tgt = tgt.replace("\n", "<n>")
 
         tokenized = [
             tokenizer.encode(
                 src, truncation=True, max_length=max_input_length, return_tensors="pt"
-            ),
+            )[0],
             tokenizer.encode(
                 tgt, truncation=True, max_length=max_output_length, return_tensors="pt"
-            ),
+            )[0],
         ]
 
         return tokenized
 
     @staticmethod
     def build_samples_before_retrieval(data):
+        context_exists = "Context" in data[0]
+
+        conversation = None
+
         for sample in tqdm.tqdm(data, desc="Building samples before retrieval"):
-            sample["Model_input"] = ("\n").join(
-                sample["Context"] + [sample["Question"]]
-            )
+            if context_exists:
+                sample["Model_input"] = ("\n").join(
+                    sample["Context"] + [sample["Question"]]
+                )
+            else:
+                if conversation != sample["Conversation_no"]:
+                    question = []
+
+                question.append(sample["Question"])
+                sample["Model_input"] = "\n".join(question)
 
         return data
 
@@ -332,13 +402,30 @@ class AdaptiveBatch:
         self.pad_token_id = pad_token_id
 
     def __call__(self, samples):
+        input_ids = torch.nn.utils.rnn.pad_sequence(
+            [sample["input_ids"] for sample in samples],
+            batch_first=True,
+            padding_value=self.pad_token_id,
+        )
+
+        attention_mask = torch.nn.utils.rnn.pad_sequence(
+            [
+                torch.ones_like(sample["input_ids"], dtype=torch.bool)
+                for sample in samples
+            ],
+            batch_first=True,
+        )
+
+        labels = torch.nn.utils.rnn.pad_sequence(
+            [sample["labels"] for sample in samples],
+            batch_first=True,
+            padding_value=self.pad_token_id,
+        )
+
         return {
-            k: torch.nn.utils.rnn.pad_sequence(
-                [sample[k].squeeze(0) for sample in samples],
-                batch_first=True,
-                padding_value=self.pad_token_id,
-            )
-            for k in samples[0]
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "labels": labels,
         }
 
 

@@ -6,6 +6,7 @@ from transformers import (
     Adafactor,
     PegasusForConditionalGeneration,
     PegasusTokenizer,
+    # PegasusTokenizerFast,
 )
 
 import pytorch_lightning as pl
@@ -17,6 +18,7 @@ class Pegasus(pl.LightningModule):
         self.save_hyperparameters(conf)
 
         self.tokenizer = PegasusTokenizer.from_pretrained(self.hparams.model_name)
+        # self.tokenizer = PegasusTokenizerFast.from_pretrained(self.hparams.model_name)
         self.model = PegasusForConditionalGeneration.from_pretrained(
             self.hparams.model_name
         )
@@ -36,9 +38,23 @@ class Pegasus(pl.LightningModule):
             self.freeze_params(d.embed_positions)
             self.freeze_params(d.embed_tokens)
 
-    def forward(self, input_ids, labels=None):
+    def forward(self, input_ids, attention_mask=None, labels=None):
+        if False:
+            print(
+                "Input:",
+                self.tokenizer.decode(input_ids[0]).replace("<n>", "\n"),
+                separator="\n",
+            )
+            print(
+                "Target:",
+                self.tokenizer.decode(labels[0]).replace("<n>", "\n"),
+                separator="\n",
+            )
+            print()
+
         output = self.model(
             input_ids=input_ids,
+            attention_mask=attention_mask,
             labels=labels,
             return_dict=True,
         )
