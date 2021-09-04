@@ -5,27 +5,24 @@ from model import get_model, get_data
 from trainer import build_trainer
 
 
-def main(args, conf):
-    if args.mode == "train":
-        if args.from_checkpoint:
-            print(f"Training from checkpoint: {args.from_checkpoint}")
-            model = get_model(conf["model_name"]).load_from_checkpoint(
-                args.from_checkpoint
-            )
-        else:
-            print("No checkpoint provided. Training from scratch.")
-            model = get_model(conf["model_name"])(conf)
+def main(conf):
+    if conf["from_checkpoint"]:
+        print(f"Loading from checkpoint: {conf['from_checkpoint']}")
+        model = get_model(conf["model_name"]).load_from_checkpoint(
+            conf["from_checkpoint"]
+        )
+    else:
+        print("No checkpoint provided.")
+        model = get_model(conf["model_name"])(conf)
 
-        data = get_data(conf["data_name"])(model.hparams, model.tokenizer)
+    data = get_data(conf["data_name"])(conf, model.tokenizer)
+    trainer = build_trainer(model.hparams)
 
-        trainer = build_trainer(model.hparams)
+    if conf["mode"] == "train":
         trainer.fit(model, data)
 
-    elif args.mode == "inference":
-        if not args.from_checkpoint:
-            print("No checkpoint provided. Please provide one.")
-            return
-        print(f"Inference mode from checkpoint: {args.from_checkpoint}")
+    elif conf["mode"] == "test":
+        trainer.test(model, data)
 
 
 if __name__ == "__main__":
@@ -40,19 +37,33 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mode",
         type=str,
-        default="train",
-        choices=["train", "inference"],
+        choices=["train", "test"],
+        required=True,
         help="Mode for running this script.",
     )
     parser.add_argument(
         "--from_checkpoint",
         type=str,
-        default=None,
         help="Path to load a model from checkpoint.",
+    )
+    parser.add_argument(
+        "--input_dir",
+        type=str,
+        default="",
+        help="Path to input directory that contains the questions.json input file and passages-index-anserini directory.",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default="",
+        help="Path to output directory where run.json will be written.",
     )
     args = parser.parse_args()
 
     with open(args.config, "r") as f:
-        conf = yaml.full_load(f)
+        conf = yaml.safe_load(f)
 
-    main(args, conf)
+    # Merge arguments and config
+    conf.update(vars(args))
+
+    main(conf)

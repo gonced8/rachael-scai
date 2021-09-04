@@ -1,3 +1,6 @@
+from itertools import chain
+import json
+
 import torch
 from torch import nn
 
@@ -5,8 +8,8 @@ from datasets import load_metric
 from transformers import (
     Adafactor,
     PegasusForConditionalGeneration,
-    PegasusTokenizer,
-    # PegasusTokenizerFast,
+    # PegasusTokenizer,
+    PegasusTokenizerFast,
 )
 
 import pytorch_lightning as pl
@@ -17,8 +20,8 @@ class Pegasus(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters(conf)
 
-        self.tokenizer = PegasusTokenizer.from_pretrained(self.hparams.model_name)
-        # self.tokenizer = PegasusTokenizerFast.from_pretrained(self.hparams.model_name)
+        # self.tokenizer = PegasusTokenizer.from_pretrained(self.hparams.model_name)
+        self.tokenizer = PegasusTokenizerFast.from_pretrained(self.hparams.model_name)
         self.model = PegasusForConditionalGeneration.from_pretrained(
             self.hparams.model_name
         )
@@ -39,19 +42,6 @@ class Pegasus(pl.LightningModule):
             self.freeze_params(d.embed_tokens)
 
     def forward(self, input_ids, attention_mask=None, labels=None):
-        if False:
-            print(
-                "Input:",
-                self.tokenizer.decode(input_ids[0]).replace("<n>", "\n"),
-                separator="\n",
-            )
-            print(
-                "Target:",
-                self.tokenizer.decode(labels[0]).replace("<n>", "\n"),
-                separator="\n",
-            )
-            print()
-
         output = self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -76,9 +66,11 @@ class Pegasus(pl.LightningModule):
             skip_special_tokens=True,
             clean_up_tokenization_spaces=True,
         )
+
         references = self.tokenizer.batch_decode(
             batch["labels"], skip_special_tokens=True, clean_up_tokenization_spaces=True
         )
+
         self.rouge_metric.add_batch(predictions=predictions, references=references)
 
         self.log("val_loss", loss, prog_bar=True)
@@ -106,24 +98,48 @@ class Pegasus(pl.LightningModule):
             skip_special_tokens=True,
             clean_up_tokenization_spaces=True,
         )
-        references = self.tokenizer.batch_decode(
-            batch["labels"], skip_special_tokens=True, clean_up_tokenization_spaces=True
-        )
 
-        self.rouge_metric.add_batch(predictions=predictions, references=references)
-        rouge_score = self.rouge_metric.compute()
-        rouge_score = parse_rouge_score(rouge_score)
+        if "labels" in batch:
+            references = self.tokenizer.batch_decode(
+                batch["labels"],
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=True,
+            )
 
-        print(rouge_score)
-        return
+            self.rouge_metric.add_batch(predictions=predictions, references=references)
 
-    def generate(self, batch):
-        print(batch.is_cuda, self.model.is_cuda)
-        batch.to(self.device)
+        return [
+            {
+                "Conversation_no": batch["Conversation_no"][i],
+                "Turn_no": batch["Turn_no"][i],
+                "Model_passages": batch["Model_passages"][i],
+                "Model_answer": predictions[i],
+            }
+            for i in range(len(predictions))
+        ]
+
+    def test_epoch_end(self, outputs):
+        # Merge outputs of the multiple steps
+        outputs = list(chain(*outputs))
+
+        # Save output
+        filename = "run.json"
+        with open(filename, "w") as f:
+            json.dump(outputs, f, indent=2)
+            print(f"Saved test output to: {filename}")
+
+    def generate(self, input_ids, max_length=None, *args, **kargs):
+        if max_length is None:
+            max_length = self.hparams.max_output_length
+
+        if not batch.is_cuda:
+            batch.to(self.device)
+
         output = self.model.generate(
+            input_ids,
+            max_length,
+            *args,
             **kargs,
-            max_length=self.hparams.max_output_length,
-            do_sample=True,
         )
 
         predictions = self.tokenizer.batch_decode(
