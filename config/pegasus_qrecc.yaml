@@ -8,13 +8,13 @@ model_name: google/pegasus-large
 max_input_length: 1024
 max_output_length: 256
 learning_rate: None
-#learning_rate: 1e-5
+#learning_rate: 1e-6
 
 # Data
-data_name: data/qrecc
-train_dataset: data/qrecc/scai-qrecc21-training-turns.json
+data_name: qrecc
+train_dataset: [data/qrecc/scai-qrecc21-training-turns.json]
 val_dataset: [data/qrecc/scai-qrecc21-toy-questions.json, data/qrecc/scai-qrecc21-toy-ground-truth.json]
-test_dataset: data/qrecc/scai-qrecc21-test-questions.json
+test_dataset:
 passages: data/qrecc/passages-index-anserini
 max_history: 3
 max_candidates: 3

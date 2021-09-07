@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 import yaml
 
 from model import get_model, get_data
+from test import test
 from trainer import build_trainer
 
 
@@ -15,14 +16,14 @@ def main(conf):
         print("No checkpoint provided.")
         model = get_model(conf["model_name"])(conf)
 
-    data = get_data(conf["data_name"])(conf, model.tokenizer)
-    trainer = build_trainer(model.hparams)
 
     if conf["mode"] == "train":
+        data = get_data(conf["data_name"])(conf, model.tokenizer)
+        trainer = build_trainer(model.hparams)
         trainer.fit(model, data)
 
     elif conf["mode"] == "test":
-        trainer.test(model, data)
+        test(model, conf)
 
 
 if __name__ == "__main__":

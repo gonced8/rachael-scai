@@ -25,105 +25,104 @@ class QReCC(pl.LightningDataModule):
         datasets = self.get_datasets_paths()
 
         for mode, dataset_path in datasets.items():
-            # Work with list of filenames
-            if isinstance(dataset_path, str):
-                dataset_path = [dataset_path]
+            if mode == "train" or mode=="validate":
+                tokenized_path = self.get_tokenized_path(mode, dataset_path)
 
-            tokenized_path = self.get_tokenized_path(mode, dataset_path)
-
-            if os.path.isfile(tokenized_path):
-                print(f"Found {mode} dataset tokenized. Loading from {tokenized_path}")
-                dataset = CustomDataset(
-                    filename=tokenized_path,
-                )
-
-            else:
-                retrieved_path = self.get_retrieved_path(mode, dataset_path)
-
-                # Retrieval model
-                from pyserini.search import SimpleSearcher
-
-                ssearcher = SimpleSearcher(
-                    os.path.join(self.hparams.input_dir, self.hparams.passages)
-                )
-
-                # Either load dataset with retrieved passages
-                if os.path.isfile(retrieved_path):
-                    print(f"Loading dataset from {retrieved_path}...")
-                    with open(retrieved_path, "r") as f:
-                        data = json.load(f)
-
-                # Or load dataset and retrieve them
-                elif all(os.path.isfile(path) for path in dataset_path):
-                    print(f"Preparing dataset. This might take a while...")
-
-                    # Read dataset_path files and merge into a single data "JSON"
-                    data = None
-                    for path in dataset_path:
-                        with open(path, "r") as f:
-                            file_data = json.load(f)
-
-                        if data is None:
-                            data = file_data
-                        else:
-                            for sample1, sample2 in zip(data, file_data):
-                                if (
-                                    sample1["Conversation_no"]
-                                    == sample2["Conversation_no"]
-                                    and sample1["Turn_no"] == sample2["Turn_no"]
-                                ):
-                                    sample1.update(sample2)
-                                else:
-                                    print(f"Datasets of {mode} are inconsistent.")
-
-                    # Build samples to be used for retrieval
-                    data = self.build_samples_before_retrieval(data)
-
-                    # Retrieve relavant passages
-                    data = self.retrieve_candidates(
-                        data,
-                        ssearcher,
-                        self.hparams.max_candidates,
-                        self.hparams.max_workers,
+                if os.path.isfile(tokenized_path):
+                    print(f"Found {mode} dataset tokenized. Loading from {tokenized_path}")
+                    dataset = CustomDataset(
+                        filename=tokenized_path,
                     )
-
-                    # Save dataset with retrieved passages
-                    if self.hparams.cache_dataset:
-                        with open(retrieved_path, "w") as f:
-                            json.dump(data, f)
-                        print(
-                            f"Saved dataset with retrieved passages in {retrieved_path}"
-                        )
 
                 else:
-                    print(
-                        f"Dataset not found at {dataset_path}. Ignoring this dataset."
+                    retrieved_path = self.get_retrieved_path(mode, dataset_path)
+
+                    # Retrieval model
+                    from pyserini.search import SimpleSearcher
+
+                    ssearcher = SimpleSearcher(
+                        os.path.join(self.hparams.input_dir, self.hparams.passages)
                     )
-                    continue
+                    ssearcher.set_bm25(0.82, 0.68)
 
-                # Build samples considering retrieved passages
-                data = self.build_samples_after_retrieval(data, ssearcher)
+                    # Either load dataset with retrieved passages
+                    if os.path.isfile(retrieved_path):
+                        print(f"Loading dataset from {retrieved_path}...")
+                        with open(retrieved_path, "r") as f:
+                            data = json.load(f)
 
-                # Tokenize
+                    # Or load dataset and retrieve them
+                    elif all(os.path.isfile(path) for path in dataset_path):
+                        print(f"Preparing dataset. This might take a while...")
 
-                # tokenized = self.tokenize_parallel(data)
-                tokenized = self.tokenize(data)
+                        # Read dataset_path files and merge into a single data "JSON"
+                        data = None
+                        for path in dataset_path:
+                            with open(path, "r") as f:
+                                file_data = json.load(f)
 
-                dataset = CustomDataset(
-                    **tokenized, vocab_size=self.tokenizer.vocab_size
-                )
+                            if data is None:
+                                data = file_data
+                            else:
+                                for sample1, sample2 in zip(data, file_data):
+                                    if (
+                                        sample1["Conversation_no"]
+                                        == sample2["Conversation_no"]
+                                        and sample1["Turn_no"] == sample2["Turn_no"]
+                                    ):
+                                        sample1.update(sample2)
+                                    else:
+                                        print(f"Datasets of {mode} are inconsistent.")
 
-                print(f"{len(dataset)} samples")
+                        # Build samples to be used for retrieval
+                        data = self.build_samples_before_retrieval(data)
 
-                # Save tokenized dataset
-                if self.hparams.cache_dataset:
-                    dataset.save(tokenized_path)
-                    print(f"Saved tokenized dataset to {tokenized_path}")
+                        # Retrieve relavant passages
+                        data = self.retrieve_candidates(
+                            data,
+                            ssearcher,
+                            self.hparams.max_candidates,
+                            self.hparams.max_workers,
+                        )
 
-            if mode == "train":
-                self.train_dataset = dataset
-            elif mode == "validate":
-                self.val_dataset = dataset
+                        # Save dataset with retrieved passages
+                        if self.hparams.cache_dataset:
+                            with open(retrieved_path, "w") as f:
+                                json.dump(data, f)
+                            print(
+                                f"Saved dataset with retrieved passages in {retrieved_path}"
+                            )
+
+                    else:
+                        print(
+                            f"Dataset not found at {dataset_path}. Ignoring this dataset."
+                        )
+                        continue
+
+                    # Build samples considering retrieved passages
+                    data = self.build_samples_after_retrieval(data, ssearcher)
+
+                    # Tokenize
+
+                    # tokenized = self.tokenize_parallel(data)
+                    tokenized = self.tokenize(data)
+
+                    dataset = CustomDataset(
+                        **tokenized, vocab_size=self.tokenizer.vocab_size
+                    )
+
+                    print(f"{len(dataset)} samples")
+
+                    # Save tokenized dataset
+                    if self.hparams.cache_dataset:
+                        dataset.save(tokenized_path)
+                        print(f"Saved tokenized dataset to {tokenized_path}")
+
+                if mode == "train":
+                    self.train_dataset = dataset
+                else:
+                    self.val_dataset = dataset
+
             elif mode == "test":
                 self.test_dataset = dataset
             else:
@@ -163,17 +162,20 @@ class QReCC(pl.LightningDataModule):
         datasets = {}
 
         if self.hparams.train_dataset:
-            datasets["train"] = os.path.join(
-                self.hparams.input_dir, self.hparams.train_dataset
-            )
+            datasets["train"] = [
+                os.path.join(self.hparams.input_dir, dataset)
+                for dataset in self.hparams.train_dataset
+            ]
         if self.hparams.val_dataset:
-            datasets["validate"] = os.path.join(
-                self.hparams.input_dir, self.hparams.val_dataset
-            )
+            datasets["validate"] = [
+                os.path.join(self.hparams.input_dir, dataset)
+                for dataset in self.hparams.val_dataset
+            ]
         if self.hparams.test_dataset:
-            datasets["test"] = os.path.join(
-                self.hparams.input_dir, self.hparams.test_dataset
-            )
+            datasets["test"] = [
+                os.path.join(self.hparams.input_dir, dataset)
+                for dataset in self.hparams.test_dataset
+            ]
 
         return datasets
 
@@ -336,10 +338,11 @@ class QReCC(pl.LightningDataModule):
                 )
             else:
                 if conversation != sample["Conversation_no"]:
+                    conversation = sample["Conversation_no"]
                     question = []
 
                 question.append(sample["Question"])
-                sample["Model_input"] = "\n".join(question)
+                sample["Model_input"] = "\n".join(question[-self.hparams.max_history:])
 
         return data
 
@@ -381,7 +384,8 @@ class QReCC(pl.LightningDataModule):
             # Update data with retrieved passages
             for q_id, candidates in hits.items():
                 data[int(q_id)]["Model_passages"] = {
-                    hit.docid: hit.score for hit in candidates
+                        hit.docid: hit.score for hit in candidates[:self.hparams.max_candidates
+                            ]
                 }
 
         return data
