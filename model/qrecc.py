@@ -325,24 +325,23 @@ class QReCC(pl.LightningDataModule):
         else:
             return src_tokenized
 
-    @staticmethod
-    def build_samples_before_retrieval(data):
+    def build_samples_before_retrieval(self, data):
         context_exists = "Context" in data[0]
 
         conversation = None
 
         for sample in tqdm.tqdm(data, desc="Building samples before retrieval"):
-            if context_exists:
-                sample["Model_input"] = ("\n").join(
-                    sample["Context"] + [sample["Question"]]
-                )
-            else:
-                if conversation != sample["Conversation_no"]:
-                    conversation = sample["Conversation_no"]
-                    question = []
+            if conversation != sample["Conversation_no"]:
+                conversation = sample["Conversation_no"]
+                question = []
 
+            if sample["Truth_rewrite"]:
+                question.append(sample["Truth_rewrite"])
+            else:
                 question.append(sample["Question"])
-                sample["Model_input"] = "\n".join(question[-self.hparams.max_history:])
+            sample["Model_input"] = "\n".join(question[-self.hparams.max_history:])
+            
+            question.append(sample["Truth_answer"])
 
         return data
 
@@ -384,8 +383,7 @@ class QReCC(pl.LightningDataModule):
             # Update data with retrieved passages
             for q_id, candidates in hits.items():
                 data[int(q_id)]["Model_passages"] = {
-                        hit.docid: hit.score for hit in candidates[:self.hparams.max_candidates
-                            ]
+                        hit.docid: hit.score for hit in candidates[:max_candidates]
                 }
 
         return data

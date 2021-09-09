@@ -1,8 +1,9 @@
 import json
 import os
 
-import tqdm
 from pyserini.search import SimpleSearcher
+import torch
+import tqdm
 from transformers import T5ForConditionalGeneration, T5TokenizerFast
 
 def test(model, conf):
@@ -19,7 +20,11 @@ def test(model, conf):
     searcher.set_bm25(0.82, 0.68)
 
     tokenizer_pegasus = model.tokenizer
-    pegasus = model.model.cuda()
+    pegasus = model.model.cuda().eval()
+
+    t5.eval()
+    pegasus.eval()
+    torch.no_grad()
     
     results = []
 
@@ -32,7 +37,7 @@ def test(model, conf):
         history.append(sample["Question"])
 
         # REWRITE
-        rewrite_input = " ||| ".join(history)
+        rewrite_input = " ||| ".join(history[-conf["rewrite_max_history"]:])
 
         #print(rewrite_input)
         # TODO: protect for when input is too large
@@ -84,6 +89,7 @@ def test(model, conf):
             generate_input_ids,
             max_length=conf["max_output_length"],
             do_sample=True,
+            no_repeat_ngram_size=conf["no_repeat_ngram_size"],
         )
 
         model_answer = tokenizer_pegasus.batch_decode(
