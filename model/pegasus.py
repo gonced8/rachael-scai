@@ -51,14 +51,18 @@ class Pegasus(pl.LightningModule):
         return output
 
     def training_step(self, batch, batch_idx):
-        output = self.forward(batch["input_ids"], batch["attention_mask"], batch["labels"])
+        output = self.forward(
+            batch["input_ids"], batch["attention_mask"], batch["labels"]
+        )
         loss = output.loss
 
         self.log("train_loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        output = self.forward(batch["input_ids"], batch["attention_mask"], batch["labels"])
+        output = self.forward(
+            batch["input_ids"], batch["attention_mask"], batch["labels"]
+        )
         loss = output.loss
 
         predictions = self.tokenizer.batch_decode(

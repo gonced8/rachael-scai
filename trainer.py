@@ -12,7 +12,7 @@ from pytorch_lightning.plugins import DDPPlugin
 
 def build_trainer(hparams):
     checkpoint_callback = ModelCheckpoint(
-        filename="best", monitor="val_loss", save_last=True
+        filename="best", monitor="rougeL", save_last=True
     )
     lr_monitor = LearningRateMonitor()
     early_stopping = EarlyStopping(monitor="val_loss", min_delta=1e-3, patience=10)

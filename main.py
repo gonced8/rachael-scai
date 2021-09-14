@@ -16,7 +16,6 @@ def main(conf):
         print("No checkpoint provided.")
         model = get_model(conf["model_name"])(conf)
 
-
     if conf["mode"] == "train":
         data = get_data(conf["data_name"])(conf, model.tokenizer)
         trainer = build_trainer(model.hparams)
@@ -47,18 +46,18 @@ if __name__ == "__main__":
         type=str,
         help="Path to load a model from checkpoint.",
     )
-    parser.add_argument(
-        "--input_dir",
-        type=str,
-        default="",
-        help="Path to input directory that contains the questions.json input file and passages-index-anserini directory.",
-    )
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="",
-        help="Path to output directory where run.json will be written.",
-    )
+    # parser.add_argument(
+    #    "--input_dir",
+    #    type=str,
+    #    default="",
+    #    help="Path to input directory that contains the questions.json input file and passages-index-anserini directory.",
+    # )
+    # parser.add_argument(
+    #    "--output_dir",
+    #    type=str,
+    #    default="",
+    #    help="Path to output directory where run.json will be written.",
+    # )
     args = parser.parse_args()
 
     with open(args.config, "r") as f:
