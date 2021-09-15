@@ -10,12 +10,12 @@ rewrite_max_output_length: 512
 data_name: qrecc
 train_dataset: 
 val_dataset: 
-#test_dataset: data/qrecc/scai-qrecc21-test-questions.json
-test_dataset: data/qrecc/scai-qrecc21-toy-questions.json
+test_dataset: data/qrecc/scai-qrecc21-test-questions.json
+#test_dataset: data/qrecc/scai-qrecc21-toy-questions.json
 passages: data/qrecc/passages-index-anserini
 dense_passages: data/qrecc/passages-dense-index-anserini
-max_history: 0
-rewrite_max_history: 10
+max_history: 1
+rewrite_max_history: 0
 max_candidates: 10
 max_workers: 24
 batch_size: 3

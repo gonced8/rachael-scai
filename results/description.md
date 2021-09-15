@@ -39,3 +39,27 @@
 - T5 for rewriting (using last 5 utterances: model rewritten and model answers)
 - BM25 retrieval (using only current model rewritten question)
 - Pegasus for generation (no_repeat_ngram_size=10, trained on the entire QReCC dataset with truth rewrite)
+
+8. question.json
+
+- T5 for rewriting (using all the last utterances: questions)
+- BM25 retrieval (using only current model rewritten question)
+- Pegasus for generation (no_repeat_ngram_size=10, trained much longer)
+
+9. answer.json
+
+- T5 for rewriting (using all the last utterances: questions and model answers)
+- BM25 retrieval (using only current model rewritten question)
+- Pegasus for generation (no_repeat_ngram_size=10, trained much longer)
+
+10. rewrite.json
+
+- T5 for rewriting (using all the last utterances: model rewritten)
+- BM25 retrieval (using only current model rewritten question)
+- Pegasus for generation (no_repeat_ngram_size=10, trained much longer)
+
+11. rewrite_and_answer.json
+
+- T5 for rewriting (using all the last utterances: model rewritten and model answers)
+- BM25 retrieval (using only current model rewritten question)
+- Pegasus for generation (no_repeat_ngram_size=10, trained much longer)

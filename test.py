@@ -14,17 +14,19 @@ def test(model, conf):
     with open(data_path, "r") as f:
         data = json.load(f)
 
-    # Setup question rewriting model
-    tokenizer_t5 = T5TokenizerFast.from_pretrained(conf["rewrite_model_name"])
-    t5 = T5ForConditionalGeneration.from_pretrained(conf["rewrite_model_name"]).cuda()
-    t5.eval()
+    rewrite = "rewritten" not in conf["test_dataset"]
+
+    if rewrite:
+        # Setup question rewriting model
+        tokenizer_t5 = T5TokenizerFast.from_pretrained(conf["rewrite_model_name"])
+        t5 = T5ForConditionalGeneration.from_pretrained(
+            conf["rewrite_model_name"]
+        ).cuda()
+        t5.eval()
 
     # Setup retrieval model
-    if "passages" in conf:
-        ssearcher = SimpleSearcher(conf["passages"])
-        ssearcher.set_bm25(0.82, 0.68)
-    else:
-        ssearcher = None
+    ssearcher = SimpleSearcher(conf["passages"])
+    ssearcher.set_bm25(0.82, 0.68)
 
     if "dense_passages" in conf:
         encoder = TctColBertQueryEncoder(
@@ -37,15 +39,9 @@ def test(model, conf):
             "data/qrecc/passages-better-dense-index-anserini",
             encoder,
         )
-    else:
-        dsearcher = None
-
-    if ssearcher is not None and dsearcher is not None:
         searcher = HybridSearcher(dsearcher, ssearcher)
-    elif ssearcher is not None:
-        searcher = ssearcher
     else:
-        searcher = dsearcher
+        searcher = ssearcher
 
     # Setup answer generation model
     tokenizer_pegasus = model.tokenizer
@@ -59,55 +55,64 @@ def test(model, conf):
 
     conversation = None
     for sample in tqdm.tqdm(data, desc="Testing..."):
+        result = {
+            "Conversation_no": sample["Conversation_no"],
+            "Turn_no": sample["Turn_no"],
+            "Question": sample["Question"],
+        }
+
         if conversation != sample["Conversation_no"]:
             conversation = sample["Conversation_no"]
             history = []
 
         history.append(sample["Question"])
 
-        # REWRITE
-        while True:
-            # Tokenize
-            rewrite_input = " ||| ".join(history[-conf["rewrite_max_history"] :])
-            # print(rewrite_input)
+        if rewrite:
+            # REWRITE
+            while True:
+                # Tokenize
+                rewrite_input = " ||| ".join(history[-conf["rewrite_max_history"] :])
+                # print(rewrite_input)
 
-            rewrite_input_ids = tokenizer_t5.encode(
-                rewrite_input,
-                truncation=False,
-                # truncation=True,
-                # max_length=conf["rewrite_max_input_length"],
-                return_tensors="pt",
+                rewrite_input_ids = tokenizer_t5.encode(
+                    rewrite_input,
+                    truncation=False,
+                    # truncation=True,
+                    # max_length=conf["rewrite_max_input_length"],
+                    return_tensors="pt",
+                )
+
+                if len(rewrite_input_ids) <= conf["rewrite_max_input_length"]:
+                    break
+                else:
+                    del history[: -conf["rewrite_max_history"] + 1]
+
+            rewrite_input_ids = rewrite_input_ids.cuda()
+
+            output = t5.generate(
+                rewrite_input_ids,
+                max_length=conf["rewrite_max_output_length"],
+                do_sample=True,
             )
 
-            if len(rewrite_input_ids) <= conf["rewrite_max_input_length"]:
-                break
-            else:
-                del history[: -conf["rewrite_max_history"] + 1]
+            model_rewrite = tokenizer_t5.batch_decode(
+                output,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=True,
+            )[0]
 
-        rewrite_input_ids = rewrite_input_ids.cuda()
-
-        output = t5.generate(
-            rewrite_input_ids,
-            max_length=conf["rewrite_max_output_length"],
-            do_sample=True,
-        )
-
-        model_rewrite = tokenizer_t5.batch_decode(
-            output,
-            skip_special_tokens=True,
-            clean_up_tokenization_spaces=True,
-        )[0]
-
-        history[-1] = model_rewrite
+            history[-1] = model_rewrite
+            result["Model_rewrite"] = model_rewrite
 
         # RETRIEVE
-        candidates = searcher.search(model_rewrite)
+        candidates = searcher.search(history[-1])
         model_passages = {
             hit.docid: hit.score for hit in candidates[: conf["max_candidates"]]
         }
+        result["Model_passages"] = model_passages
 
         # GENERATE
-        docs = [searcher.doc(docid) for docid in model_passages]
+        docs = [ssearcher.doc(docid) for docid in model_passages]
         passages = [json.loads(doc.raw())["contents"] for doc in docs]
 
         context = "\n".join(history[-conf["max_history"] :])
@@ -139,19 +144,10 @@ def test(model, conf):
         # input()
 
         history.append(model_answer)
+        result["Model_answer"] = model_answer
 
-        results.append(
-            {
-                "Conversation_no": sample["Conversation_no"],
-                "Turn_no": sample["Turn_no"],
-                "Turn_no": sample["Question"],
-                "Model_rewrite": model_rewrite,
-                "Model_passages": model_passages,
-                "Model_answer": model_answer,
-            }
-        )
-
-        print(results[-1])
+        results.append(result)
+        print(result)
 
     filename = "run.json"
     with open(filename, "w") as f:
