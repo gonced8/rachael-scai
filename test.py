@@ -2,11 +2,10 @@ import json
 import os
 
 from pyserini.search import SimpleSearcher
-from pyserini.dsearch import SimpleDenseSearcher, TctColBertQueryEncoder
-from pyserini.hsearch import HybridSearcher
 import torch
 import tqdm
-from transformers import T5ForConditionalGeneration, T5TokenizerFast
+
+DEBUG = False
 
 
 def test(model, conf):
@@ -14,9 +13,13 @@ def test(model, conf):
     with open(data_path, "r") as f:
         data = json.load(f)
 
-    rewrite = "rewritten" not in conf["test_dataset"]
+    rewrite = "rewritten" not in conf["test_dataset"] and conf.get(
+        "rewrite_model_name", []
+    )
 
     if rewrite:
+        from transformers import T5ForConditionalGeneration, T5TokenizerFast
+
         # Setup question rewriting model
         tokenizer_t5 = T5TokenizerFast.from_pretrained(conf["rewrite_model_name"])
         t5 = T5ForConditionalGeneration.from_pretrained(
@@ -28,7 +31,10 @@ def test(model, conf):
     ssearcher = SimpleSearcher(conf["passages"])
     ssearcher.set_bm25(0.82, 0.68)
 
-    if "dense_passages" in conf:
+    if conf.get("dense_passages", []):
+        from pyserini.dsearch import SimpleDenseSearcher, TctColBertQueryEncoder
+        from pyserini.hsearch import HybridSearcher
+
         encoder = TctColBertQueryEncoder(
             # "castorini/tct_colbert-msmarco", device="cuda"
             "sentence-transformers/msmarco-distilbert-base-v3",
@@ -42,6 +48,16 @@ def test(model, conf):
         searcher = HybridSearcher(dsearcher, ssearcher)
     else:
         searcher = ssearcher
+
+    # Setup re-ranker
+    if conf.get("reranker", []):
+        from pygaggle.rerank.base import Query, Text
+        from pygaggle.rerank.transformer import DuoT5
+        from pygaggle.rerank.base import hits_to_texts
+
+        reranker = DuoT5()
+    else:
+        reranker = None
 
     # Setup answer generation model
     tokenizer_pegasus = model.tokenizer
@@ -67,8 +83,10 @@ def test(model, conf):
 
         history.append(sample["Question"])
 
+        # REWRITE
         if rewrite:
-            # REWRITE
+            if DEBUG:
+                print("rewrite")
             while True:
                 # Tokenize
                 rewrite_input = " ||| ".join(history[-conf["rewrite_max_history"] :])
@@ -105,16 +123,34 @@ def test(model, conf):
             result["Model_rewrite"] = model_rewrite
 
         # RETRIEVE
-        candidates = searcher.search(history[-1])
-        model_passages = {
-            hit.docid: hit.score for hit in candidates[: conf["max_candidates"]]
-        }
+        if DEBUG:
+            print("retrieve")
+        query = history[-1]
+        hits = searcher.search(query, k=conf["max_candidates"])[
+            : conf["max_candidates"]
+        ]
+
+        # RE-RANK
+        if reranker is None:
+            model_passages = {hit.docid: hit.score for hit in hits}
+        else:
+            if DEBUG:
+                print("re-rank")
+            query = Query(query)
+            texts = hits_to_texts(hits)
+            reranked = reranker.rerank(query, texts)[: conf["max_rerank_candidates"]]
+
+            model_passages = {hit.metadata["docid"]: hit.score for hit in reranked}
+
+        passages = [
+            json.loads(ssearcher.doc(docid).raw())["contents"]
+            for docid in model_passages
+        ]
         result["Model_passages"] = model_passages
 
         # GENERATE
-        docs = [ssearcher.doc(docid) for docid in model_passages]
-        passages = [json.loads(doc.raw())["contents"] for doc in docs]
-
+        if DEBUG:
+            print("generate")
         context = "\n".join(history[-conf["max_history"] :])
 
         generate_input = "\n\n".join([context] + passages)
@@ -135,6 +171,14 @@ def test(model, conf):
             no_repeat_ngram_size=conf["no_repeat_ngram_size"],
         )
 
+        if DEBUG:
+            model_input = tokenizer_pegasus.batch_decode(
+                generate_input_ids,
+            )[0]
+            print(
+                f"Length: {len(generate_input_ids[0])}\t Passages: {model_input.count('<n><n>')}"
+            )
+
         model_answer = tokenizer_pegasus.batch_decode(
             output,
             skip_special_tokens=True,
@@ -147,7 +191,8 @@ def test(model, conf):
         result["Model_answer"] = model_answer
 
         results.append(result)
-        print(result)
+        if DEBUG:
+            print(result)
 
     filename = "run.json"
     with open(filename, "w") as f:

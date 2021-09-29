@@ -4,6 +4,7 @@ data/
 dataset/
 huggingface/
 index*.txt
+results_pretty/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
