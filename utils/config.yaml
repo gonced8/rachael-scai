@@ -1,0 +1,78 @@
+A:
+    rewrite:
+    retrieval:
+        history: 3
+        question: "Question"
+        model_anwer: "Model_anwer"
+B:
+    rewrite:
+        history: 5
+        question: "Model_rewrite"
+        model_anwer: "Model_anwer"
+    retrieval:
+        history: 5
+        question: "Model_rewrite"
+        model_anwer: "Model_anwer"
+C:
+    rewrite:
+        history: 5
+        question: "Model_rewrite"
+        model_anwer: "Model_anwer"
+    retrieval:
+        history: 1
+        question: "Model_rewrite"
+        model_anwer: ""
+D:
+    rewrite:
+        history: 5
+        question: "Model_rewrite"
+        model_anwer: "Model_anwer"
+    retrieval:
+        history: 1
+        question: "Model_rewrite"
+        model_anwer: ""
+E:
+    rewrite:
+        history: 5
+        question: "Model_rewrite"
+        model_anwer: "Model_anwer"
+    retrieval:
+        history: 1
+        question: "Model_rewrite"
+        model_anwer: ""
+F:
+    rewrite:
+        history: 0
+        question: "Question"
+        model_anwer: ""
+    retrieval:
+        history: 1
+        question: "Model_rewrite"
+        model_anwer: ""
+G:
+    rewrite:
+        history: 0
+        question: "Question"
+        model_anwer: "Model_anwer"
+    retrieval:
+        history: 1
+        question: "Model_rewrite"
+        model_anwer: ""
+H:
+    rewrite:
+        history: 0
+        question: "Model_rewrite"
+        model_anwer: ""
+    retrieval:
+        history: 1
+        question: "Model_rewrite"
+        model_anwer: ""
+I:
+    rewrite:
+        history: 0
+        question: "Model_rewrite"
+        model_anwer: "Model_anwer"
+    retrieval:
+        history: 1
+        question: "Model_rewrite"
+        model_anwer: ""
