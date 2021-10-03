@@ -9,7 +9,6 @@ pyserini
 pytorch-lightning
 pytrec_eval
 rouge_score
-seaborn
 sentencepiece
 streamlit
 torch==1.9.1+cu111
