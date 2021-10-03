@@ -13,7 +13,7 @@ val_dataset:
 test_dataset: data/qrecc/scai-qrecc21-test-questions.json
 #test_dataset: data/qrecc/scai-qrecc21-toy-questions.json
 passages: data/qrecc/passages-index-anserini
-dense_passages: data/qrecc/passages-dense-index-anserini
+#dense_passages: data/qrecc/passages-dense-index-anserini
 max_history: 1
 rewrite_max_history: 0
 max_candidates: 10

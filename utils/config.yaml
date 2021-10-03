@@ -3,76 +3,76 @@ A:
     retrieval:
         history: 3
         question: "Question"
-        model_anwer: "Model_anwer"
+        model_answer: "Model_anwer"
 B:
     rewrite:
         history: 5
         question: "Model_rewrite"
-        model_anwer: "Model_anwer"
+        model_answer: "Model_anwer"
     retrieval:
         history: 5
         question: "Model_rewrite"
-        model_anwer: "Model_anwer"
+        model_answer: "Model_anwer"
 C:
     rewrite:
         history: 5
         question: "Model_rewrite"
-        model_anwer: "Model_anwer"
+        model_answer: "Model_anwer"
     retrieval:
         history: 1
         question: "Model_rewrite"
-        model_anwer: ""
+        model_answer:
 D:
     rewrite:
         history: 5
         question: "Model_rewrite"
-        model_anwer: "Model_anwer"
+        model_answer: "Model_anwer"
     retrieval:
         history: 1
         question: "Model_rewrite"
-        model_anwer: ""
+        model_answer:
 E:
     rewrite:
         history: 5
         question: "Model_rewrite"
-        model_anwer: "Model_anwer"
+        model_answer: "Model_anwer"
     retrieval:
         history: 1
         question: "Model_rewrite"
-        model_anwer: ""
+        model_answer:
 F:
     rewrite:
         history: 0
         question: "Question"
-        model_anwer: ""
+        model_answer:
     retrieval:
         history: 1
         question: "Model_rewrite"
-        model_anwer: ""
+        model_answer:
 G:
     rewrite:
         history: 0
         question: "Question"
-        model_anwer: "Model_anwer"
+        model_answer: "Model_anwer"
     retrieval:
         history: 1
         question: "Model_rewrite"
-        model_anwer: ""
+        model_answer:
 H:
     rewrite:
         history: 0
         question: "Model_rewrite"
-        model_anwer: ""
+        model_answer:
     retrieval:
         history: 1
         question: "Model_rewrite"
-        model_anwer: ""
+        model_answer:
 I:
     rewrite:
         history: 0
         question: "Model_rewrite"
-        model_anwer: "Model_anwer"
+        model_answer: "Model_anwer"
     retrieval:
         history: 1
         question: "Model_rewrite"
-        model_anwer: ""
+        model_answer:

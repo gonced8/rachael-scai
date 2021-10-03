@@ -1,0 +1,16 @@
+measure{
+  key: "ROUGE1-R"
+  value: "0.685"
+}
+measure{
+  key: "MRR"
+  value: "0.149"
+}
+measure{
+  key: "Exact match"
+  value: "0.010"
+}
+measure{
+  key: "F1"
+  value: "0.189"
+}

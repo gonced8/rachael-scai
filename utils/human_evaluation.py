@@ -9,6 +9,7 @@ from pyserini.search import SimpleSearcher
 from tqdm import tqdm
 from transformers import T5TokenizerFast, PegasusTokenizerFast
 
+ALL = False
 n_evaluators = 4
 n_passages = 100
 
@@ -83,7 +84,9 @@ def main(filenames, conf):
 
                 new_sample["Rewrite_input"] = rewrite_input
                 new_sample["Model_rewrite"] = sample["Model_rewrite"]
-                history[-1] = sample["Model_rewrite"]
+
+                if conf[run]["rewrite"]["question"].lower() == "model_rewrite":
+                    history[-1] = sample["Model_rewrite"]
 
             # RETRIEVAL
             retrieval_max_history = conf[run]["retrieval"]["history"]
@@ -113,7 +116,7 @@ def main(filenames, conf):
                 truncation=True,
                 max_length=max_input_length,
                 return_tensors="pt",
-            ).cuda()
+            )
 
             generate_input = tokenizer_pegasus.batch_decode(generate_input_ids,)[
                 0
@@ -122,24 +125,39 @@ def main(filenames, conf):
             new_sample["Model_input"] = generate_input
             new_sample["Model_answer"] = sample["Model_answer"]
 
+            if conf[run]["rewrite"] and conf[run]["rewrite"]["model_answer"]:
+                history.append(sample["Model_answer"])
+
             # Update sample with new_sample (more info)
             data[i] = new_sample
 
-        samples = random.sample(data, n_evaluators * n_passages)
-
         # Create Excel
-        for evaluator in range(n_evaluators):
-            split = samples[evaluator * n_passages : (evaluator + 1) * n_passages]
-
-            df = pd.DataFrame(split)
+        if ALL:
+            df = pd.DataFrame(data)
 
             # Get filename of new file
             new_filename = list(os.path.splitext(filename))
-            new_filename = f"{new_filename[0]}_{evaluator}.xlsx"
+            new_filename = f"{new_filename[0]}_evaluation.xlsx"
 
             # Save file
             df.to_excel(new_filename, engine="xlsxwriter")
             print(f"Saved from {filename} to {new_filename}")
+
+        else:
+            samples = random.sample(data, n_evaluators * n_passages)
+
+            for evaluator in range(n_evaluators):
+                split = samples[evaluator * n_passages : (evaluator + 1) * n_passages]
+
+                df = pd.DataFrame(split)
+
+                # Get filename of new file
+                new_filename = list(os.path.splitext(filename))
+                new_filename = f"{new_filename[0]}_{evaluator}.xlsx"
+
+                # Save file
+                df.to_excel(new_filename, engine="xlsxwriter")
+                print(f"Saved from {filename} to {new_filename}")
 
 
 if __name__ == "__main__":

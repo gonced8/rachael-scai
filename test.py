@@ -139,6 +139,7 @@ def test(model, conf):
             query = Query(query)
             texts = hits_to_texts(hits)
             reranked = reranker.rerank(query, texts)[: conf["max_rerank_candidates"]]
+            reranked.sort(reverse=True, key=lambda hit: hit.score)
 
             model_passages = {hit.metadata["docid"]: hit.score for hit in reranked}
 
