@@ -72,9 +72,11 @@ class QReCC(pl.LightningDataModule):
                                 else:
                                     print(f"Datasets of {mode} are inconsistent.")
 
+                    # data = data[: int(len(data) // 1000) + 1]
+
                     # Build samples to be used for retrieval
                     data = self.build_samples_before_retrieval(
-                        data, self.hparams.max_history
+                        data, self.hparams.max_history, self.hparams.rewrite
                     )
 
                     # Retrieve relavant passages
@@ -105,7 +107,6 @@ class QReCC(pl.LightningDataModule):
                 )
 
                 # Tokenize
-
                 # tokenized = self.tokenize_parallel(data)
                 tokenized = self.tokenize(data)
 
@@ -175,6 +176,7 @@ class QReCC(pl.LightningDataModule):
 
     def get_tokenized_path(self, mode, filenames):
         hash_value = hash_file(filenames)[:4]
+        rewrite_flag = "_rewrite" if self.hparams.rewrite else ""
         settings = "{:04d}{:04d}{:02d}{:02d}".format(
             self.hparams.max_input_length,
             self.hparams.max_output_length,
@@ -184,6 +186,7 @@ class QReCC(pl.LightningDataModule):
 
         tokenized_path = (
             os.path.join(os.path.dirname(filenames[0]), mode)
+            + rewrite_flag
             + "_tokenized_"
             + hash_value
             + "_"
@@ -195,6 +198,7 @@ class QReCC(pl.LightningDataModule):
 
     def get_retrieved_path(self, mode, filenames):
         hash_value = hash_file(filenames)[:4]
+        rewrite_flag = "_rewrite" if self.hparams.rewrite else ""
         settings = "{:02d}{:02d}".format(
             self.hparams.max_history,
             self.hparams.max_candidates,
@@ -202,6 +206,7 @@ class QReCC(pl.LightningDataModule):
 
         retrieved_path = (
             os.path.join(os.path.dirname(filenames[0]), mode)
+            + rewrite_flag
             + "_retrieved_"
             + hash_value
             + "_"
@@ -213,6 +218,7 @@ class QReCC(pl.LightningDataModule):
 
     def tokenize(self, data):
         src = [sample["Model_input"] for sample in data]
+
         if "Truth_answer" in data[0]:
             tgt = [sample["Truth_answer"] for sample in data]
         else:
@@ -320,7 +326,7 @@ class QReCC(pl.LightningDataModule):
             return src_tokenized
 
     @staticmethod
-    def build_samples_before_retrieval(data, max_history):
+    def build_samples_before_retrieval(data, max_history, rewrite):
         conversation = None
 
         for sample in tqdm.tqdm(data, desc="Building samples before retrieval"):
@@ -328,7 +334,11 @@ class QReCC(pl.LightningDataModule):
                 conversation = sample["Conversation_no"]
                 history = []
 
-            history.append(sample["Truth_rewrite"])
+            if rewrite:
+                history.append(sample["Truth_rewrite"])
+            else:
+                history.append(sample["Question"])
+
             history = history[-max_history:]
 
             sample["Model_input"] = "\n".join(history)

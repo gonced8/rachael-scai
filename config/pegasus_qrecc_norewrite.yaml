@@ -16,8 +16,8 @@ train_dataset: [data/qrecc/scai-qrecc21-training-turns.json]
 val_dataset: [data/qrecc/scai-qrecc21-toy-questions.json, data/qrecc/scai-qrecc21-toy-ground-truth.json]
 test_dataset:
 passages: data/qrecc/passages-index-anserini
-rewrite: True
-max_history: 1
+rewrite: False
+max_history: 7
 max_candidates: 10
 max_workers: 24
 batch_size: 3

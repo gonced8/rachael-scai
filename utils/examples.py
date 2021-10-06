@@ -9,15 +9,68 @@ from pyserini.search import SimpleSearcher
 from tqdm import tqdm
 from transformers import T5TokenizerFast, PegasusTokenizerFast
 
-ALL = False
-n_evaluators = 4
-n_passages = 100
+examples_ids = {
+    "ROUGE1-R > Q3  MRR > Q3   F1 > Q3": [
+        "2061_3",
+        "2287_4",
+        "624_6",
+        "1047_2",
+        "1404_5",
+    ],
+    "ROUGE1-R > Q3  MRR > Q3   F1 < Q1": [
+        "556_7",
+        "1525_6",
+        "334_2",
+        "423_7",
+        "1743_2",
+    ],
+    "ROUGE1-R > Q3  MRR < Q1   F1 > Q3": [
+        "818_3",
+        "2678_5",
+        "2156_2",
+        "1036_2",
+        "1706_2",
+    ],
+    "ROUGE1-R > Q3  MRR < Q1   F1 < Q1": [
+        "2540_2",
+        "2746_4",
+        "430_2",
+        "605_6",
+        "190_2",
+    ],
+    "ROUGE1-R < Q1  MRR > Q3   F1 > Q3": [
+        "1064_4",
+        "1116_8",
+        "2308_3",
+        "1172_2",
+        "1301_5",
+    ],
+    "ROUGE1-R < Q1  MRR > Q3   F1 < Q1": ["990_7", "152_8", "211_8", "581_7", "1053_6"],
+    "ROUGE1-R < Q1  MRR < Q1   F1 > Q3": [
+        "1094_8",
+        "2704_3",
+        "2173_2",
+        "1428_4",
+        "1195_6",
+    ],
+    "ROUGE1-R < Q1  MRR < Q1   F1 < Q1": [
+        "850_2",
+        "241_6",
+        "1001_3",
+        "1285_2",
+        "1953_5",
+    ],
+}
 
 rewrite_model_name = "castorini/t5-base-canard"
 model_name = "google/pegasus-large"
 index = "../data/qrecc/passages-index-anserini"
 rewrite_max_input_length = 512
 max_input_length = 1024
+
+
+def get_turn_id(turn):
+    return "%d_%d" % (turn["Conversation_no"], turn["Turn_no"])
 
 
 def main(filenames, conf):
@@ -30,6 +83,12 @@ def main(filenames, conf):
     # Setup generation
     tokenizer_pegasus = PegasusTokenizerFast.from_pretrained(model_name)
 
+    # Read test ground truth
+    with open("../data/qrecc/scai-qrecc21-test-ground-truth.json", "r") as f:
+        test_ground_truth = json.load(f)
+
+    test_ground_truth = {get_turn_id(sample): sample for sample in test_ground_truth}
+
     # Loop through output files
     for filename in tqdm(filenames, desc="Processing results files"):
         run = os.path.split(os.path.splitext(filename)[0])[-1].split("_")[0]
@@ -40,17 +99,18 @@ def main(filenames, conf):
 
         # Augment samples with input of each model
         conversation = None
+        data_dict = {}
         for i, sample in enumerate(
             tqdm(data, desc="Augmenting samples with input of each model")
         ):
             sample = data[i]
+            test = test_ground_truth[get_turn_id(sample)]
 
             new_sample = {
-                "Id": i,
                 "Conversation_no": sample["Conversation_no"],
                 "Turn_no": sample["Turn_no"],
                 "Question": sample["Question"],
-                "Truth_rewrite": sample["Truth_rewrite"],
+                "Truth_rewrite": test["Truth_rewrite"],
             }
 
             # Construct conversation history
@@ -80,10 +140,12 @@ def main(filenames, conf):
 
                 rewrite_input = tokenizer_t5.batch_decode(
                     rewrite_input_ids,
+                    skip_special_tokens=True,
+                    clean_up_tokenization_spaces=True,
                 )[0]
 
-                new_sample["Rewrite_input"] = rewrite_input
                 new_sample["Model_rewrite"] = sample["Model_rewrite"]
+                new_sample["Rewrite_input"] = rewrite_input
 
                 if conf[run]["rewrite"]["question"].lower() == "model_rewrite":
                     history[-1] = sample["Model_rewrite"]
@@ -93,16 +155,12 @@ def main(filenames, conf):
             query = "\n".join(history[-retrieval_max_history:])
             new_sample["Query"] = query
 
-            model_passages = sample["Model_passages"]
             passages = list(sample["Passages_text"].values())
 
-            # Transform passages dict to single columns
-            for n, ((docid, score), text) in enumerate(
-                zip(model_passages.items(), passages), start=1
-            ):
-                new_sample[f"Passage{n}_id"] = docid
-                new_sample[f"Passage{n}_score"] = score
-                new_sample[f"Passage{n}_text"] = text
+            new_sample["Truth_passages"] = test["Truth_passages"]
+            new_sample["Model_passages"] = sample["Model_passages"]
+
+            # for (docid, score), text in zip(model_passages.items(), passages):
 
             # GENERATE
             max_history = retrieval_max_history
@@ -118,46 +176,35 @@ def main(filenames, conf):
                 return_tensors="pt",
             )
 
-            generate_input = tokenizer_pegasus.batch_decode(generate_input_ids,)[
-                0
-            ].replace("<n>", "\n")
+            generate_input = tokenizer_pegasus.batch_decode(
+                generate_input_ids,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=True,
+            )[0].replace("<n>", "\n")
 
-            new_sample["Model_input"] = generate_input
+            new_sample["Truth_answer"] = test["Truth_answer"]
             new_sample["Model_answer"] = sample["Model_answer"]
+            new_sample["Model_input"] = generate_input
 
             if conf[run]["rewrite"] and conf[run]["rewrite"]["model_answer"]:
                 history.append(sample["Model_answer"])
 
             # Update sample with new_sample (more info)
             data[i] = new_sample
+            data_dict[get_turn_id(new_sample)] = new_sample
 
-        # Create Excel
-        if ALL:
-            df = pd.DataFrame(data)
+        # Get examples
+        examples = {}
 
-            # Get filename of new file
-            new_filename = list(os.path.splitext(filename))
-            new_filename = f"{new_filename[0]}_evaluation.xlsx"
+        for case, turnids in examples_ids.items():
+            examples[case] = [
+                data_dict[turnid] for turnid in turnids if turnid in data_dict
+            ]
 
-            # Save file
-            df.to_excel(new_filename, engine="xlsxwriter")
-            print(f"Saved from {filename} to {new_filename}")
-
-        else:
-            samples = random.sample(data, n_evaluators * n_passages)
-
-            for evaluator in range(n_evaluators):
-                split = samples[evaluator * n_passages : (evaluator + 1) * n_passages]
-
-                df = pd.DataFrame(split)
-
-                # Get filename of new file
-                new_filename = list(os.path.splitext(filename))
-                new_filename = f"{new_filename[0]}_{evaluator}.xlsx"
-
-                # Save file
-                df.to_excel(new_filename, engine="xlsxwriter")
-                print(f"Saved from {filename} to {new_filename}")
+        # Save examples
+        with open("examples.json", "w") as f:
+            json.dump(examples, f, indent=2)
+            print(f"Saved from {filename} to examples.json")
 
 
 if __name__ == "__main__":

@@ -1,16 +1,16 @@
 measure{
   key: "ROUGE1-R"
-  value: "0.685"
+  value: "1.000"
 }
 measure{
   key: "MRR"
-  value: "0.149"
+  value: "0.385"
 }
 measure{
   key: "Exact match"
-  value: "0.010"
+  value: "0.028"
 }
 measure{
   key: "F1"
-  value: "0.189"
+  value: "0.302"
 }

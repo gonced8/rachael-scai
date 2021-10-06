@@ -1,0 +1,23 @@
+# Model
+model_name: google/pegasus-large
+#rewrite_model_name: castorini/t5-base-canard
+max_input_length: 1024
+max_output_length: 256
+rewrite_max_input_length: 512
+rewrite_max_output_length: 512
+
+# Data
+data_name: qrecc
+train_dataset: 
+val_dataset: 
+test_dataset: data/qrecc/scai-qrecc21-test-questions.json
+#test_dataset: data/qrecc/scai-qrecc21-toy-questions.json
+passages: data/qrecc/passages-index-anserini
+#dense_passages: data/qrecc/passages-dense-index-anserini
+max_history: 7
+rewrite_max_history: 0
+max_candidates: 10
+max_workers: 24
+batch_size: 3
+cache_dataset: true
+no_repeat_ngram_size: 10

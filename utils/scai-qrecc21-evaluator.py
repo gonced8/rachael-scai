@@ -165,13 +165,22 @@ def get_turn_id(turn):
 
 
 def get_rewriting_run(run):
+    if "Model_rewrite" not in run[0]:
+        print("Using Question instead of Model_rewrite")
+
     rewriting_run = {}
+
     for turn in run:
         if "Model_rewrite" in turn:
             rewrite = turn["Model_rewrite"]
-            if rewrite != None:
-                turn_id = get_turn_id(turn)
-                rewriting_run[turn_id] = rewrite
+        elif "Question" in turn:
+            rewrite = turn["Question"]
+        else:
+            rewrite = None
+
+        if rewrite is not None:
+            turn_id = get_turn_id(turn)
+            rewriting_run[turn_id] = rewrite
     return rewriting_run
 
 
