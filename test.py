@@ -80,8 +80,10 @@ def test(model, conf):
         if conversation != sample["Conversation_no"]:
             conversation = sample["Conversation_no"]
             history = []
+            original_history = []
 
         history.append(sample["Question"])
+        original_history.append(sample["Question"])
 
         # REWRITE
         if rewrite:
@@ -125,7 +127,7 @@ def test(model, conf):
         # RETRIEVE
         if DEBUG:
             print("retrieve")
-        query = history[-1]
+        query = "\n".join(history[-conf["max_history"] :])
         hits = searcher.search(query, k=conf["max_candidates"])[
             : conf["max_candidates"]
         ]
@@ -152,7 +154,11 @@ def test(model, conf):
         # GENERATE
         if DEBUG:
             print("generate")
-        context = "\n".join(history[-conf["max_history"] :])
+
+        if "original_history" in conf and conf["original_history"]:
+            context = "\n".join(original_history[-conf["original_max_history"] :])
+        else:
+            context = query
 
         generate_input = "\n\n".join([context] + passages)
         # print(generate_input)
@@ -189,6 +195,7 @@ def test(model, conf):
         # input()
 
         history.append(model_answer)
+        original_history.append(model_answer)
         result["Model_answer"] = model_answer
 
         results.append(result)
