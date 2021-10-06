@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+SAMPLE = True
 SHOW = False
-SAVE = True
+SAVE = False
 
 plt.rcParams.update({"font.size": 16})
 plt.rcParams["font.family"] = "serif"
@@ -13,6 +14,32 @@ plt.rcParams["font.family"] = "serif"
 def split_df(df):
     df1, df2 = np.array_split(df, 2)
     return df1, df2
+
+
+def sample_from_each_case(
+    rouge_gt_mrr_gt, rouge_gt_mrr_lt, rouge_lt_mrr_gt, rouge_lt_mrr_lt
+):
+    rouge_gt_mrr_gt_f1_gt, _, _, rouge_gt_mrr_gt_f1_lt = np.array_split(
+        rouge_gt_mrr_gt.sort_values(by=["F1", "MRR", "ROUGE1-R"], ascending=False), 4
+    )
+    rouge_gt_mrr_lt_f1_gt, _, _, rouge_gt_mrr_lt_f1_lt = np.array_split(
+        rouge_gt_mrr_lt.sort_values(by=["F1", "MRR", "ROUGE1-R"], ascending=False), 4
+    )
+    rouge_lt_mrr_gt_f1_gt, _, _, rouge_lt_mrr_gt_f1_lt = np.array_split(
+        rouge_lt_mrr_gt.sort_values(by=["F1", "MRR", "ROUGE1-R"], ascending=False), 4
+    )
+    rouge_lt_mrr_lt_f1_gt, _, _, rouge_lt_mrr_lt_f1_lt = np.array_split(
+        rouge_lt_mrr_lt.sort_values(by=["F1", "MRR", "ROUGE1-R"], ascending=False), 4
+    )
+
+    print("rouge_gt_mrr_gt_f1_gt:", rouge_gt_mrr_gt_f1_gt.sample(5)["turnid"].tolist())
+    print("rouge_gt_mrr_gt_f1_lt:", rouge_gt_mrr_gt_f1_lt.sample(5)["turnid"].tolist())
+    print("rouge_gt_mrr_lt_f1_gt:", rouge_gt_mrr_lt_f1_gt.sample(5)["turnid"].tolist())
+    print("rouge_gt_mrr_lt_f1_lt:", rouge_gt_mrr_lt_f1_lt.sample(5)["turnid"].tolist())
+    print("rouge_lt_mrr_gt_f1_gt:", rouge_lt_mrr_gt_f1_gt.sample(5)["turnid"].tolist())
+    print("rouge_lt_mrr_gt_f1_lt:", rouge_lt_mrr_gt_f1_lt.sample(5)["turnid"].tolist())
+    print("rouge_lt_mrr_lt_f1_gt:", rouge_lt_mrr_lt_f1_gt.sample(5)["turnid"].tolist())
+    print("rouge_lt_mrr_lt_f1_lt:", rouge_lt_mrr_lt_f1_lt.sample(5)["turnid"].tolist())
 
 
 def analyze(filename):
@@ -25,34 +52,45 @@ def analyze(filename):
     data = pd.DataFrame.dropna(data)
 
     print(f"ROUGE1-R: {data['ROUGE1-R'].size} entries")
+    print(f"ROUGE1-R: mean = {data['ROUGE1-R'].mean():.3f}")
 
     # ROUGE1-R median
     rouge_q1 = data["ROUGE1-R"].quantile(0.25)
+    rouge_q2 = data["ROUGE1-R"].quantile(0.5)
     rouge_q3 = data["ROUGE1-R"].quantile(0.75)
 
     # Plot ROUGE1-R
     fig1, ax1 = plt.subplots()
 
     ax1.axvline(rouge_q1, color="k", linestyle="dashed", linewidth=2)
+    ax1.axvline(rouge_q2, color="k", linestyle="dashdot", linewidth=2)
     ax1.axvline(rouge_q3, color="k", linestyle="dotted", linewidth=2)
     ax1.hist(
         data["ROUGE1-R"],
         bins=25,
         weights=np.ones_like(data["ROUGE1-R"]) / data["ROUGE1-R"].size,
         edgecolor="white",
+        color="#D69C4E",
     )
 
-    ax1.legend(["$1^{st}$ quartile", "$3^{rd}$ quartile"])
+    ax1.legend(["$1^{st}$ quartile", "$2^{nd}$ quartile", "$3^{rd}$ quartile"])
     ax1.set_xlabel("ROUGE1-R")
-    ax1.set_ylabel("Relative Frequency [%]")
+    ax1.set_ylabel("Relative Frequency")
 
     # Split dataset in half (ROUGE1-R median)
     rouge_gt, _, _, rouge_lt = np.array_split(
         data.sort_values(by="ROUGE1-R", ascending=False), 4
     )
 
+    mrr_upper_0_freq = rouge_gt["MRR"].eq(0).sum() / rouge_gt["MRR"].size
+    mrr_lower_0_freq = rouge_lt["MRR"].eq(0).sum() / rouge_lt["MRR"].size
+
     print(f"MRR (upper): {rouge_gt['MRR'].size} entries")
     print(f"MRR (lower): {rouge_lt['MRR'].size} entries")
+    print(f"MRR (upper): mean = {rouge_gt['MRR'].mean():.3f}")
+    print(f"MRR (lower): mean = {rouge_lt['MRR'].mean():.3f}")
+    print(f"MRR (upper): 0 relative freq = {mrr_upper_0_freq:.3f}")
+    print(f"MRR (lower): 0 relative freq = {mrr_lower_0_freq:.3f}")
 
     # MRR quartiles (ROUGE1-R upper half)
     rouge_gt_mrr_q1 = rouge_gt["MRR"].quantile(0.25)
@@ -69,11 +107,13 @@ def analyze(filename):
             np.ones_like(rouge_gt["MRR"]) / rouge_gt["MRR"].size,
             np.ones_like(rouge_lt["MRR"]) / rouge_lt["MRR"].size,
         ],
+        edgecolor="white",
+        color=["#00A08A", "#F2AD00"],
     )
 
     ax2.legend(["ROUGE1-R > Q3", "ROUGE1-R < Q1"])
     ax2.set_xlabel("MRR")
-    ax2.set_ylabel("Relative Frequency [%]")
+    ax2.set_ylabel("Relative Frequency")
 
     # Split dataset in half (MRR median)
     rouge_gt_mrr_gt, _, _, rouge_gt_mrr_lt = np.array_split(
@@ -87,6 +127,16 @@ def analyze(filename):
     print(f"F1 or EM (upper, lower): {rouge_gt_mrr_lt['F1'].size} entries")
     print(f"F1 or EM (lower, upper): {rouge_lt_mrr_gt['F1'].size} entries")
     print(f"F1 or EM (lower, lower): {rouge_lt_mrr_lt['F1'].size} entries")
+
+    print(f"F1 (upper, upper): mean = {rouge_gt_mrr_gt['F1'].mean():.3f}")
+    print(f"F1 (upper, lower): mean = {rouge_gt_mrr_lt['F1'].mean():.3f}")
+    print(f"F1 (lower, upper): mean = {rouge_lt_mrr_gt['F1'].mean():.3f}")
+    print(f"F1 (lower, lower): mean = {rouge_lt_mrr_lt['F1'].mean():.3f}")
+
+    print(f"EM (upper, upper): mean = {rouge_gt_mrr_gt['Exact match'].mean():.3f}")
+    print(f"EM (upper, lower): mean = {rouge_gt_mrr_lt['Exact match'].mean():.3f}")
+    print(f"EM (lower, upper): mean = {rouge_lt_mrr_gt['Exact match'].mean():.3f}")
+    print(f"EM (lower, lower): mean = {rouge_lt_mrr_lt['Exact match'].mean():.3f}")
 
     # Split dataset for MRR>0
     # rouge_gt_mrr_gt = rouge_gt[rouge_gt["MRR"] > 0]
@@ -103,12 +153,13 @@ def analyze(filename):
             np.ones_like(rouge_gt_mrr_lt["F1"]) / rouge_gt_mrr_lt["F1"].size,
         ],
         edgecolor="white",
+        color=["#5BBCD6", "#F98400"],
     )
     ax3.legend(
         ["ROUGE1-R > Q3\n          MRR > Q3", "ROUGE1-R > Q3\n          MRR < Q1"]
     )
     ax3.set_xlabel("F1")
-    ax3.set_ylabel("Relative Frequency [%]")
+    ax3.set_ylabel("Relative Frequency")
 
     # Plot F1 (ROUGE1-R lower half)
     fig4, ax4 = plt.subplots()
@@ -118,12 +169,14 @@ def analyze(filename):
             np.ones_like(rouge_lt_mrr_gt["F1"]) / rouge_lt_mrr_gt["F1"].size,
             np.ones_like(rouge_lt_mrr_lt["F1"]) / rouge_lt_mrr_lt["F1"].size,
         ],
+        edgecolor="white",
+        color=["#046C9A", "#FF0000"],
     )
     ax4.legend(
         ["ROUGE1-R < Q1\n          MRR > Q3", "ROUGE1-R < Q1\n          MRR < Q1"]
     )
     ax4.set_xlabel("F1")
-    ax4.set_ylabel("Relative Frequency [%]")
+    ax4.set_ylabel("Relative Frequency")
 
     # Plot Exact match (ROUGE1-R upper half)
     fig5, ax5 = plt.subplots()
@@ -135,12 +188,14 @@ def analyze(filename):
             np.ones_like(rouge_gt_mrr_lt["Exact match"])
             / rouge_gt_mrr_lt["Exact match"].size,
         ],
+        edgecolor="white",
+        color=["#5BBCD6", "#F98400"],
     )
     ax5.legend(
         ["ROUGE1-R > Q3\n          MRR > Q3", "ROUGE1-R > Q3\n          MRR < Q1"]
     )
     ax5.set_xlabel("Exact match")
-    ax5.set_ylabel("Relative Frequency [%]")
+    ax5.set_ylabel("Relative Frequency")
 
     # Plot Exact match (ROUGE1-R lower half)
     fig6, ax6 = plt.subplots()
@@ -152,12 +207,20 @@ def analyze(filename):
             np.ones_like(rouge_lt_mrr_lt["Exact match"])
             / rouge_lt_mrr_lt["Exact match"].size,
         ],
+        edgecolor="white",
+        color=["#046C9A", "#FF0000"],
     )
     ax6.legend(
         ["ROUGE1-R < Q1\n          MRR > Q3", "ROUGE1-R < Q1\n          MRR < Q1"]
     )
     ax6.set_xlabel("Exact match")
-    ax6.set_ylabel("Relative Frequency [%]")
+    ax6.set_ylabel("Relative Frequency")
+
+    # Sample samples of each case
+    if SAMPLE:
+        sample_from_each_case(
+            rouge_gt_mrr_gt, rouge_gt_mrr_lt, rouge_lt_mrr_gt, rouge_lt_mrr_lt
+        )
 
     if SHOW:
         plt.tight_layout()
@@ -180,6 +243,6 @@ def main(filenames):
 if __name__ == "__main__":
     if len(argv) <= 1:
         print("Please specify CSV file to load.")
-        print(f"Example: {sys.argv[0]} example_file.csv")
+        print(f"Example: {argv[0]} example_file.csv")
     else:
         main(argv[1:])
