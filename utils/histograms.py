@@ -3,9 +3,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-SAMPLE = True
-SHOW = False
-SAVE = False
+SAMPLE = False
+SHOW = True
+SAVE = True
+
+N_TURNS = 10
 
 plt.rcParams.update({"font.size": 16})
 plt.rcParams["font.family"] = "serif"
@@ -47,6 +49,99 @@ def analyze(filename):
     data = pd.read_csv(filename, sep="\t", index_col=False)
 
     print(f"Data: {data.size} entries")
+
+    # Plot metrics through turns
+    turnids = data["turnid"]
+    turn_no = [int(turnid.split("_")[1]) for turnid in turnids]
+    data["Turn_no"] = turn_no
+
+    metrics = {"ROUGE1-R": [], "MRR": [], "F1": [], "Exact match": []}
+
+    for turn_no in range(1, N_TURNS + 1):
+        turn_data = data[data["Turn_no"] == turn_no]
+
+        for k, v in metrics.items():
+            if not turn_data[k].empty:
+                filtered = turn_data[turn_data[k].notna()][k]
+                v.append(filtered)
+                print(f"Turn_no: {turn_no}\tMetric: {k}\tn_entries: {filtered.size}")
+            else:
+                v.append([])
+
+    metrics["ROUGE1-R"][0] = [1]
+
+    fig7, ax7 = plt.subplots()
+    ax7.boxplot(
+        metrics["ROUGE1-R"],
+        meanline=True,
+        showmeans=True,
+        patch_artist=True,
+        boxprops={"facecolor": "lightgray"},
+        medianprops={"lw": 2},
+        meanprops={"lw": 2},
+    )
+    ax7.legend(
+        [plt.Line2D([0], [0], color="green", linewidth=2, linestyle="--")],
+        ["Mean"],
+        loc="upper right",
+    )
+    ax7.set_xlabel("Turn no")
+    ax7.set_ylabel("ROUGE1-R")
+
+    fig8, ax8 = plt.subplots()
+    ax8.boxplot(
+        metrics["MRR"],
+        meanline=True,
+        showmeans=True,
+        patch_artist=True,
+        boxprops={"facecolor": "lightgray"},
+        medianprops={"lw": 2},
+        meanprops={"lw": 2},
+    )
+    ax8.legend(
+        [plt.Line2D([0], [0], color="green", linewidth=2, linestyle="--")],
+        ["Mean"],
+        loc="upper right",
+    )
+    ax8.set_xlabel("Turn no")
+    ax8.set_ylabel("MRR")
+
+    fig9, ax9 = plt.subplots()
+    ax9.boxplot(
+        metrics["F1"],
+        meanline=True,
+        showmeans=True,
+        patch_artist=True,
+        boxprops={"facecolor": "lightgray"},
+        medianprops={"lw": 2},
+        meanprops={"lw": 2},
+    )
+    ax9.legend(
+        [plt.Line2D([0], [0], color="green", linewidth=2, linestyle="--")],
+        ["Mean"],
+        loc="upper right",
+    )
+    ax9.set_xlabel("Turn no")
+    ax9.set_ylabel("F1")
+
+    fig10, ax10 = plt.subplots()
+    ax10.boxplot(
+        metrics["Exact match"],
+        meanline=True,
+        showmeans=True,
+        patch_artist=True,
+        boxprops={"facecolor": "lightgray"},
+        medianprops={"lw": 2},
+        meanprops={"lw": 2},
+    )
+    ax10.legend(
+        [plt.Line2D([0], [0], color="green", linewidth=2, linestyle="--")],
+        ["Mean"],
+        loc="upper right",
+    )
+
+    ax10.set_xlabel("Turn no")
+    ax10.set_ylabel("Exact match")
 
     # Consider only rows/samples with all metrics
     data = pd.DataFrame.dropna(data)
@@ -222,8 +317,18 @@ def analyze(filename):
             rouge_gt_mrr_gt, rouge_gt_mrr_lt, rouge_lt_mrr_gt, rouge_lt_mrr_lt
         )
 
+    fig1.tight_layout()
+    fig2.tight_layout()
+    fig3.tight_layout()
+    fig4.tight_layout()
+    fig5.tight_layout()
+    fig6.tight_layout()
+    fig7.tight_layout()
+    fig8.tight_layout()
+    fig9.tight_layout()
+    fig10.tight_layout()
+
     if SHOW:
-        plt.tight_layout()
         plt.show()
 
     if SAVE:
@@ -233,6 +338,10 @@ def analyze(filename):
         fig4.savefig("plots/f1_lower.pdf", bbox_inches="tight")
         fig5.savefig("plots/em_upper.pdf", bbox_inches="tight")
         fig6.savefig("plots/em_lower.pdf", bbox_inches="tight")
+        fig7.savefig("plots/rouge1-r_box.pdf", bbox_inches="tight")
+        fig8.savefig("plots/mrr_box.pdf", bbox_inches="tight")
+        fig9.savefig("plots/f1_box.pdf", bbox_inches="tight")
+        fig10.savefig("plots/em_box.pdf", bbox_inches="tight")
 
 
 def main(filenames):
