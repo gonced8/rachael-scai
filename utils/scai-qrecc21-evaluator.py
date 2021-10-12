@@ -290,6 +290,7 @@ def evaluate_answering(ground_truth, run, eval_missing_truth):
     result = {}
     answering_run = get_answering_run(run)
     metric = load_metric("squad_v2")
+    metric2 = load_metric("rouge")
     answers = 0
     for turn in tqdm(ground_truth, desc="  "):
         turn_id = get_turn_id(turn)
@@ -307,11 +308,16 @@ def evaluate_answering(ground_truth, run, eval_missing_truth):
                 prediction["prediction_text"] = answering_run[turn_id]
                 answers = answers + 1
             metric.add(prediction=prediction, reference=reference)
+            metric2.add(
+                prediction=answering_run[turn_id], reference=turn["Truth_answer"]
+            )
     if answers > 0:
         score = metric.compute()
-        result["Exact match"] = score["exact"] / 100
         result["F1"] = score["f1"] / 100
-        print("    used %d answers" % answers)
+        result["Exact match"] = score["exact"] / 100
+
+        score2 = metric2.compute()
+        result["ROUGEL-F1"] = score2["rougeL"].mid.fmeasure
     else:
         print("    skipped for no answers")
     return result

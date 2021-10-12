@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-SAMPLE = True
+SAMPLE = False
 SHOW = False
 SAVE = False
 
@@ -40,6 +40,29 @@ def sample_from_each_case(
     print("rouge_lt_mrr_gt_f1_lt:", rouge_lt_mrr_gt_f1_lt.sample(5)["turnid"].tolist())
     print("rouge_lt_mrr_lt_f1_gt:", rouge_lt_mrr_lt_f1_gt.sample(5)["turnid"].tolist())
     print("rouge_lt_mrr_lt_f1_lt:", rouge_lt_mrr_lt_f1_lt.sample(5)["turnid"].tolist())
+
+
+def stats(
+    rouge_gt,
+    rouge_lt,
+    rouge_gt_mrr_gt,
+    rouge_gt_mrr_lt,
+    rouge_lt_mrr_gt,
+    rouge_lt_mrr_lt,
+):
+    data = {
+        "ROUGE1-R > Q3": rouge_gt,
+        "ROUGE1-R < Q1": rouge_lt,
+        "ROUGE1-R > Q3, MRR > Q3": rouge_gt_mrr_gt,
+        "ROUGE1-R > Q3, MRR < Q1": rouge_gt_mrr_lt,
+        "ROUGE1-R < Q1, MRR > Q3": rouge_lt_mrr_gt,
+        "ROUGE1-R < Q1, MRR < Q1": rouge_lt_mrr_lt,
+    }
+
+    for k, v in data.items():
+        print(
+            f"{k}: {v['ROUGE1-R'].mean():.3f} {v['MRR'].mean():.3f} {v['F1'].mean():.3f} {v['Exact match'].mean():.3f}"
+        )
 
 
 def analyze(filename):
@@ -215,6 +238,17 @@ def analyze(filename):
     )
     ax6.set_xlabel("Exact match")
     ax6.set_ylabel("Relative Frequency")
+
+    stats(
+        rouge_gt,
+        rouge_lt,
+        rouge_gt_mrr_gt,
+        rouge_gt_mrr_lt,
+        rouge_lt_mrr_gt,
+        rouge_lt_mrr_lt,
+    )
+
+    stats2(data)
 
     # Sample samples of each case
     if SAMPLE:
