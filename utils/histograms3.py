@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 
 SAMPLE = False
-SHOW = False
-SAVE = False
+SHOW = True
+SAVE = True
 
 plt.rcParams.update({"font.size": 16})
 plt.rcParams["font.family"] = "serif"
@@ -43,15 +43,15 @@ def stats(
         )
 
 
-def get_success_fail(data, metric, threshold=None):
+def get_success_fail(data, metric, threshold=None, quartile=4):
     if threshold is None:
-        *fail, success = np.array_split(data.sort_values(by=metric, ascending=False), 4)
+        *fail, success = np.array_split(data.sort_values(by=metric), quartile)
         fail = pd.concat(fail)
     else:
-        success = data[data[metric] >= threshold]
         fail = data[data[metric] < threshold]
+        success = data[data[metric] >= threshold]
 
-    return sucess, fail
+    return success, fail
 
 
 def analyze(filename):
@@ -78,6 +78,8 @@ def analyze(filename):
     ) = (
         *get_success_fail(splits["ROUGE1-R success"], "MRR", 1 / 3),
         *get_success_fail(splits["ROUGE1-R fail"], "MRR", 1 / 3),
+        # *get_success_fail(splits["ROUGE1-R success"], ["MRR", "ROUGE1-R"]),
+        # *get_success_fail(splits["ROUGE1-R fail"], ["MRR", "ROUGE1-R"]),
     )
 
     (
@@ -120,167 +122,92 @@ def analyze(filename):
     ax1.hist(
         splits["original"]["ROUGE1-R"],
         bins=25,
-        weights=np.ones(splits["original"].size) / splits["original"].size,
+        weights=np.ones(len(splits["original"])) / len(splits["original"]),
         edgecolor="white",
         color="#D69C4E",
     )
 
-    plt.show()
-    return
-
-    ax1.legend(["$1^{st}$ quartile", "$2^{nd}$ quartile", "$3^{rd}$ quartile"])
+    ax1.legend(["threshold (Q3)"])
     ax1.set_xlabel("ROUGE1-R")
     ax1.set_ylabel("Relative Frequency")
-
-    # Split dataset in half (ROUGE1-R median)
-    rouge_gt, _, _, rouge_lt = np.array_split(
-        data.sort_values(by="ROUGE1-R", ascending=False), 4
-    )
-
-    mrr_upper_0_freq = rouge_gt["MRR"].eq(0).sum() / rouge_gt["MRR"].size
-    mrr_lower_0_freq = rouge_lt["MRR"].eq(0).sum() / rouge_lt["MRR"].size
-
-    print(f"MRR (upper): {rouge_gt['MRR'].size} entries")
-    print(f"MRR (lower): {rouge_lt['MRR'].size} entries")
-    print(f"MRR (upper): mean = {rouge_gt['MRR'].mean():.3f}")
-    print(f"MRR (lower): mean = {rouge_lt['MRR'].mean():.3f}")
-    print(f"MRR (upper): 0 relative freq = {mrr_upper_0_freq:.3f}")
-    print(f"MRR (lower): 0 relative freq = {mrr_lower_0_freq:.3f}")
-
-    # MRR quartiles (ROUGE1-R upper half)
-    rouge_gt_mrr_q1 = rouge_gt["MRR"].quantile(0.25)
-    rouge_gt_mrr_q3 = rouge_gt["MRR"].quantile(0.75)
-    rouge_lt_mrr_q1 = rouge_lt["MRR"].quantile(0.25)
-    rouge_lt_mrr_q3 = rouge_lt["MRR"].quantile(0.75)
 
     # Plot MRR
     fig2, ax2 = plt.subplots()
 
+    ax2.axvline(1 / 3, color="k", linestyle="dashed", linewidth=2)
     ax2.hist(
-        [rouge_gt["MRR"], rouge_lt["MRR"]],
+        [splits["ROUGE1-R success"]["MRR"], splits["ROUGE1-R fail"]["MRR"]],
+        bins=[0, 0.1, 1 / 3, 0.9, 1],
         weights=[
-            np.ones_like(rouge_gt["MRR"]) / rouge_gt["MRR"].size,
-            np.ones_like(rouge_lt["MRR"]) / rouge_lt["MRR"].size,
+            np.ones(len(splits["ROUGE1-R success"])) / len(splits["ROUGE1-R success"]),
+            np.ones(len(splits["ROUGE1-R fail"])) / len(splits["ROUGE1-R fail"]),
         ],
         edgecolor="white",
         color=["#00A08A", "#F2AD00"],
     )
 
-    ax2.legend(["ROUGE1-R > Q3", "ROUGE1-R < Q1"])
-    ax2.set_xlabel("MRR")
+    ax2.legend(["threshold (1/3)", "ROUGE1-R $\geq$ Q3", "ROUGE1-R < Q3"])
+    ax2.set_xlabel("MRR @ 10")
     ax2.set_ylabel("Relative Frequency")
 
-    # Split dataset in half (MRR median)
-    rouge_gt_mrr_gt, _, _, rouge_gt_mrr_lt = np.array_split(
-        rouge_gt.sort_values(by=["MRR", "ROUGE1-R"], ascending=False), 4
-    )
-    rouge_lt_mrr_gt, _, _, rouge_lt_mrr_lt = np.array_split(
-        rouge_lt.sort_values(by=["MRR", "ROUGE1-R"], ascending=False), 4
-    )
+    # F1 3rd quartile
+    f1_q3 = splits["original"]["F1"].quantile(0.75)
 
-    print(f"F1 or EM (upper, upper): {rouge_gt_mrr_gt['F1'].size} entries")
-    print(f"F1 or EM (upper, lower): {rouge_gt_mrr_lt['F1'].size} entries")
-    print(f"F1 or EM (lower, upper): {rouge_lt_mrr_gt['F1'].size} entries")
-    print(f"F1 or EM (lower, lower): {rouge_lt_mrr_lt['F1'].size} entries")
-
-    print(f"F1 (upper, upper): mean = {rouge_gt_mrr_gt['F1'].mean():.3f}")
-    print(f"F1 (upper, lower): mean = {rouge_gt_mrr_lt['F1'].mean():.3f}")
-    print(f"F1 (lower, upper): mean = {rouge_lt_mrr_gt['F1'].mean():.3f}")
-    print(f"F1 (lower, lower): mean = {rouge_lt_mrr_lt['F1'].mean():.3f}")
-
-    print(f"EM (upper, upper): mean = {rouge_gt_mrr_gt['Exact match'].mean():.3f}")
-    print(f"EM (upper, lower): mean = {rouge_gt_mrr_lt['Exact match'].mean():.3f}")
-    print(f"EM (lower, upper): mean = {rouge_lt_mrr_gt['Exact match'].mean():.3f}")
-    print(f"EM (lower, lower): mean = {rouge_lt_mrr_lt['Exact match'].mean():.3f}")
-
-    # Split dataset for MRR>0
-    # rouge_gt_mrr_gt = rouge_gt[rouge_gt["MRR"] > 0]
-    # rouge_gt_mrr_lt = rouge_gt[rouge_gt["MRR"] <= 0]
-    # rouge_lt_mrr_gt = rouge_lt[rouge_lt["MRR"] > 0]
-    # rouge_lt_mrr_lt = rouge_lt[rouge_lt["MRR"] <= 0]
-
-    # Plot F1 (ROUGE1-R upper half)
+    # Plot F1
     fig3, ax3 = plt.subplots()
+
+    ax3.axvline(f1_q3, color="k", linestyle="dashed", linewidth=2)
     ax3.hist(
-        [rouge_gt_mrr_gt["F1"], rouge_gt_mrr_lt["F1"]],
-        weights=[
-            np.ones_like(rouge_gt_mrr_gt["F1"]) / rouge_gt_mrr_gt["F1"].size,
-            np.ones_like(rouge_gt_mrr_lt["F1"]) / rouge_gt_mrr_lt["F1"].size,
-        ],
+        splits["original"]["F1"],
+        bins=25,
+        weights=np.ones(len(splits["original"])) / len(splits["original"]),
         edgecolor="white",
-        color=["#5BBCD6", "#F98400"],
+        color="#D69C4E",
     )
-    ax3.legend(
-        ["ROUGE1-R > Q3\n          MRR > Q3", "ROUGE1-R > Q3\n          MRR < Q1"]
-    )
+
+    ax3.legend(["threshold (Q3)"])
     ax3.set_xlabel("F1")
     ax3.set_ylabel("Relative Frequency")
 
-    # Plot F1 (ROUGE1-R lower half)
+    # Plot F1 (ROUGE1-R success)
     fig4, ax4 = plt.subplots()
     ax4.hist(
-        [rouge_lt_mrr_gt["F1"], rouge_lt_mrr_lt["F1"]],
-        weights=[
-            np.ones_like(rouge_lt_mrr_gt["F1"]) / rouge_lt_mrr_gt["F1"].size,
-            np.ones_like(rouge_lt_mrr_lt["F1"]) / rouge_lt_mrr_lt["F1"].size,
+        [
+            splits["ROUGE1-R success, MRR success"]["F1"],
+            splits["ROUGE1-R success, MRR fail"]["F1"],
         ],
-        edgecolor="white",
-        color=["#046C9A", "#FF0000"],
-    )
-    ax4.legend(
-        ["ROUGE1-R < Q1\n          MRR > Q3", "ROUGE1-R < Q1\n          MRR < Q1"]
-    )
-    ax4.set_xlabel("F1")
-    ax4.set_ylabel("Relative Frequency")
-
-    # Plot Exact match (ROUGE1-R upper half)
-    fig5, ax5 = plt.subplots()
-    ax5.hist(
-        [rouge_gt_mrr_gt["Exact match"], rouge_gt_mrr_lt["Exact match"]],
         weights=[
-            np.ones_like(rouge_gt_mrr_gt["Exact match"])
-            / rouge_gt_mrr_gt["Exact match"].size,
-            np.ones_like(rouge_gt_mrr_lt["Exact match"])
-            / rouge_gt_mrr_lt["Exact match"].size,
+            np.ones(len(splits["ROUGE1-R success, MRR success"]))
+            / len(splits["ROUGE1-R success, MRR success"]),
+            np.ones(len(splits["ROUGE1-R success, MRR fail"]))
+            / len(splits["ROUGE1-R success, MRR fail"]),
         ],
         edgecolor="white",
         color=["#5BBCD6", "#F98400"],
     )
-    ax5.legend(
-        ["ROUGE1-R > Q3\n          MRR > Q3", "ROUGE1-R > Q3\n          MRR < Q1"]
-    )
-    ax5.set_xlabel("Exact match")
-    ax5.set_ylabel("Relative Frequency")
+    ax4.legend(["MRR $\geq$ 1/3", "MRR < 1/3"])
+    ax4.set_xlabel("F1")
+    ax4.set_ylabel("Relative Frequency")
 
-    # Plot Exact match (ROUGE1-R lower half)
-    fig6, ax6 = plt.subplots()
-    ax6.hist(
-        [rouge_lt_mrr_gt["Exact match"], rouge_lt_mrr_lt["Exact match"]],
+    # Plot F1 (ROUGE1-R fail)
+    fig5, ax5 = plt.subplots()
+    ax5.hist(
+        [
+            splits["ROUGE1-R fail, MRR success"]["F1"],
+            splits["ROUGE1-R fail, MRR fail"]["F1"],
+        ],
         weights=[
-            np.ones_like(rouge_lt_mrr_gt["Exact match"])
-            / rouge_lt_mrr_gt["Exact match"].size,
-            np.ones_like(rouge_lt_mrr_lt["Exact match"])
-            / rouge_lt_mrr_lt["Exact match"].size,
+            np.ones(len(splits["ROUGE1-R fail, MRR success"]))
+            / len(splits["ROUGE1-R fail, MRR success"]),
+            np.ones(len(splits["ROUGE1-R fail, MRR fail"]))
+            / len(splits["ROUGE1-R fail, MRR fail"]),
         ],
         edgecolor="white",
-        color=["#046C9A", "#FF0000"],
+        color=["#5BBCD6", "#F98400"],
     )
-    ax6.legend(
-        ["ROUGE1-R < Q1\n          MRR > Q3", "ROUGE1-R < Q1\n          MRR < Q1"]
-    )
-    ax6.set_xlabel("Exact match")
-    ax6.set_ylabel("Relative Frequency")
-
-    stats(
-        rouge_gt,
-        rouge_lt,
-        rouge_gt_mrr_gt,
-        rouge_gt_mrr_lt,
-        rouge_lt_mrr_gt,
-        rouge_lt_mrr_lt,
-    )
-
-    stats2(data)
+    ax5.legend(["MRR $\geq$ 1/3", "MRR < 1/3"])
+    ax5.set_xlabel("F1")
+    ax5.set_ylabel("Relative Frequency")
 
     # Sample samples of each case
     if SAMPLE:
@@ -295,10 +222,9 @@ def analyze(filename):
     if SAVE:
         fig1.savefig("plots/rouge1-r.pdf", bbox_inches="tight")
         fig2.savefig("plots/mrr.pdf", bbox_inches="tight")
-        fig3.savefig("plots/f1_upper.pdf", bbox_inches="tight")
-        fig4.savefig("plots/f1_lower.pdf", bbox_inches="tight")
-        fig5.savefig("plots/em_upper.pdf", bbox_inches="tight")
-        fig6.savefig("plots/em_lower.pdf", bbox_inches="tight")
+        fig3.savefig("plots/f1.pdf", bbox_inches="tight")
+        fig4.savefig("plots/f1_success.pdf", bbox_inches="tight")
+        fig5.savefig("plots/f1_fail.pdf", bbox_inches="tight")
 
 
 def main(filenames):
