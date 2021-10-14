@@ -242,24 +242,14 @@ def analyze(filename):
         fig5.savefig("plots/f1_fail.pdf", bbox_inches="tight")
 
 
-def analyze2(filename):
-    with open(filename, "r") as f:
-        data = json.load(f)
-
-    n_passages = [sample[] for sample in data]
-
-
 def main(filenames):
     for filename in filenames:
-        if "json" in filename:
-            analyze2(filename)
-        else:
-            analyze(filename)
+        analyze(filename)
 
 
 if __name__ == "__main__":
     if len(argv) <= 1:
-        print("Please specify CSV or JSON file to load.")
+        print("Please specify CSV file to load.")
         print(f"Example: {argv[0]} example_file.csv")
     else:
         main(argv[1:])
