@@ -1,6 +1,7 @@
-import random
+from collections import Counter
 import json
 import os
+import random
 import sys
 import yaml
 
@@ -22,6 +23,9 @@ def get_turn_id(turn):
 
 
 def main(filenames, conf):
+    # Counter
+    n_passages = Counter()
+
     # Setup rewriter
     tokenizer_t5 = T5TokenizerFast.from_pretrained(rewrite_model_name)
 
@@ -130,8 +134,8 @@ def main(filenames, conf):
                 clean_up_tokenization_spaces=True,
             )[0].replace("<n>", "\n")
 
-            print(generate_input, generate_input.count("\n\n"))
-            input()
+            n = generate_input.count("\n\n")
+            n_passages[n] += 1
 
             new_sample["Truth_answer"] = test["Truth_answer"]
             new_sample["Model_answer"] = sample["Model_answer"]
@@ -144,18 +148,11 @@ def main(filenames, conf):
             data[i] = new_sample
             data_dict[get_turn_id(new_sample)] = new_sample
 
-        # Get examples
-        examples = {}
-
-        for case, turnids in examples_ids.items():
-            examples[case] = [
-                data_dict[turnid] for turnid in turnids if turnid in data_dict
-            ]
-
-        # Save examples
-        with open("examples.json", "w") as f:
-            json.dump(examples, f, indent=2)
-            print(f"Saved from {filename} to examples.json")
+        # Save number of passages
+        out_filename = "n_passages.json"
+        with open(out_filename, "w") as f:
+            json.dump(n_passages, f, indent=2)
+            print(f"Saved from {filename} to {out_filename}")
 
 
 if __name__ == "__main__":
