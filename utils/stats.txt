@@ -1,0 +1,243 @@
+Data: 80695 entries
+medians
+{
+    "original": {
+        "ROUGE1-R": 0.666667,
+        "MRR": 0.0,
+        "F1": 0.125,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R success": {
+        "ROUGE1-R": 1.0,
+        "MRR": 0.111111,
+        "F1": 0.227273,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R fail": {
+        "ROUGE1-R": 0.6,
+        "MRR": 0.0,
+        "F1": 0.1,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R success, MRR success": {
+        "ROUGE1-R": 1.0,
+        "MRR": 0.5,
+        "F1": 0.291667,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R success, MRR fail": {
+        "ROUGE1-R": 1.0,
+        "MRR": 0.0,
+        "F1": 0.171429,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R fail, MRR success": {
+        "ROUGE1-R": 0.666667,
+        "MRR": 0.5,
+        "F1": 0.210526,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R fail, MRR fail": {
+        "ROUGE1-R": 0.571429,
+        "MRR": 0.0,
+        "F1": 0.083333,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R success, MRR success, F1 success": {
+        "ROUGE1-R": 1.0,
+        "MRR": 0.5,
+        "F1": 0.5,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R success, MRR success, F1 fail": {
+        "ROUGE1-R": 1.0,
+        "MRR": 0.333333,
+        "F1": 0.13423400000000002,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R success, MRR fail, F1 success": {
+        "ROUGE1-R": 1.0,
+        "MRR": 0.0,
+        "F1": 0.372685,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R success, MRR fail, F1 fail": {
+        "ROUGE1-R": 0.916667,
+        "MRR": 0.0,
+        "F1": 0.121212,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R fail, MRR success, F1 success": {
+        "ROUGE1-R": 0.684211,
+        "MRR": 0.5,
+        "F1": 0.5,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R fail, MRR success, F1 fail": {
+        "ROUGE1-R": 0.642857,
+        "MRR": 0.333333,
+        "F1": 0.121212,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R fail, MRR fail, F1 success": {
+        "ROUGE1-R": 0.636364,
+        "MRR": 0.0,
+        "F1": 0.3125,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R fail, MRR fail, F1 fail": {
+        "ROUGE1-R": 0.571429,
+        "MRR": 0.0,
+        "F1": 0.068966,
+        "Exact match": 0.0
+    }
+}
+means
+{
+    "original": {
+        "ROUGE1-R": 0.6679316039112667,
+        "MRR": 0.14816371906012843,
+        "F1": 0.1875530531231757,
+        "Exact match": 0.012113251605370695
+    },
+    "ROUGE1-R success": {
+        "ROUGE1-R": 0.9523037057793345,
+        "MRR": 0.29319279568009343,
+        "F1": 0.30838747343841216,
+        "Exact match": 0.028604786923525978
+    },
+    "ROUGE1-R fail": {
+        "ROUGE1-R": 0.5731409032885776,
+        "MRR": 0.0998206935201401,
+        "F1": 0.1472749130180969,
+        "Exact match": 0.0066160731659856
+    },
+    "ROUGE1-R success, MRR success": {
+        "ROUGE1-R": 0.9604314772234274,
+        "MRR": 0.544728046637744,
+        "F1": 0.39157348156182215,
+        "Exact match": 0.049891540130151846
+    },
+    "ROUGE1-R success, MRR fail": {
+        "ROUGE1-R": 0.9428298685208598,
+        "MRR": 0.0,
+        "F1": 0.2114247686472819,
+        "Exact match": 0.0037926675094816687
+    },
+    "ROUGE1-R fail, MRR success": {
+        "ROUGE1-R": 0.639639731471536,
+        "MRR": 0.5509973619763695,
+        "F1": 0.31718686680988184,
+        "Exact match": 0.036519871106337275
+    },
+    "ROUGE1-R fail, MRR fail": {
+        "ROUGE1-R": 0.5584283536121674,
+        "MRR": 0.0,
+        "F1": 0.10968270080798478,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R success, MRR success, F1 success": {
+        "ROUGE1-R": 0.9637572099644129,
+        "MRR": 0.6268245249110321,
+        "F1": 0.5652099519572954,
+        "Exact match": 0.08185053380782918
+    },
+    "ROUGE1-R success, MRR success, F1 fail": {
+        "ROUGE1-R": 0.955239638888889,
+        "MRR": 0.4165663222222223,
+        "F1": 0.12050765833333332,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R success, MRR fail, F1 success": {
+        "ROUGE1-R": 0.956962562992126,
+        "MRR": 0.0,
+        "F1": 0.4173251692913386,
+        "Exact match": 0.011811023622047244
+    },
+    "ROUGE1-R success, MRR fail, F1 fail": {
+        "ROUGE1-R": 0.9361451303538174,
+        "MRR": 0.0,
+        "F1": 0.11403426256983239,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R fail, MRR success, F1 success": {
+        "ROUGE1-R": 0.6576399804878048,
+        "MRR": 0.6570179780487805,
+        "F1": 0.5752613000000001,
+        "Exact match": 0.08292682926829269
+    },
+    "ROUGE1-R fail, MRR success, F1 fail": {
+        "ROUGE1-R": 0.6254744683301344,
+        "MRR": 0.4675646314779271,
+        "F1": 0.11409566218809981,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R fail, MRR fail, F1 success": {
+        "ROUGE1-R": 0.6162903450292396,
+        "MRR": 0.0,
+        "F1": 0.34667452241715396,
+        "Exact match": 0.0
+    },
+    "ROUGE1-R fail, MRR fail, F1 fail": {
+        "ROUGE1-R": 0.5503950108254397,
+        "MRR": 0.0,
+        "F1": 0.07677964140730718,
+        "Exact match": 0.0
+    }
+}
+ROUGE1-R success, MRR success, F1 success: 0.964 0.627 0.565 0.082 len=562
+ROUGE1-R success, MRR success, F1 fail: 0.955 0.417 0.121 0.000 len=360
+ROUGE1-R success, MRR fail, F1 success: 0.957 0.000 0.417 0.012 len=254
+ROUGE1-R success, MRR fail, F1 fail: 0.936 0.000 0.114 0.000 len=537
+ROUGE1-R fail, MRR success, F1 success: 0.658 0.657 0.575 0.083 len=410
+ROUGE1-R fail, MRR success, F1 fail: 0.625 0.468 0.114 0.000 len=521
+ROUGE1-R fail, MRR fail, F1 success: 0.616 0.000 0.347 0.000 len=513
+ROUGE1-R fail, MRR fail, F1 fail: 0.550 0.000 0.077 0.000 len=3695
+ROUGE1-R success, MRR success, F1 success
+   turnid  ROUGE1-R  MRR  Exact match        F1
+0  1396_6  0.888889  1.0          0.0  0.980392
+1    77_8  1.000000  0.5          0.0  0.297872
+2  2310_2  1.000000  0.2          0.0  0.666667
+3  1219_2  0.857143  1.0          1.0  1.000000
+ROUGE1-R success, MRR success, F1 fail
+   turnid  ROUGE1-R       MRR  Exact match        F1
+0  1284_2  0.909091  0.111111          0.0  0.037736
+1   965_6  0.916667  0.250000          0.0  0.000000
+2  1158_2  1.000000  0.500000          0.0  0.205128
+3  2403_4  0.909091  0.250000          0.0  0.111111
+ROUGE1-R success, MRR fail, F1 success
+   turnid  ROUGE1-R  MRR  Exact match        F1
+0   354_4  0.875000  0.0          0.0  0.833333
+1    65_4  0.888889  0.0          0.0  0.262295
+2  1325_8  1.000000  0.0          0.0  0.521739
+3   640_2  0.888889  0.0          0.0  0.571429
+ROUGE1-R success, MRR fail, F1 fail
+   turnid  ROUGE1-R  MRR  Exact match        F1
+0  1410_2  0.857143  0.0          0.0  0.166667
+1   519_2  0.900000  0.0          0.0  0.153846
+2  1695_4  1.000000  0.0          0.0  0.133333
+3   556_4  0.857143  0.0          0.0  0.085106
+ROUGE1-R fail, MRR success, F1 success
+  turnid  ROUGE1-R    MRR  Exact match        F1
+0  941_7  0.500000  1.000          0.0  0.500000
+1  529_5  0.466667  0.125          0.0  0.400000
+2  833_2  0.750000  0.200          0.0  0.600000
+3   12_7  0.714286  1.000          0.0  0.724138
+ROUGE1-R fail, MRR success, F1 fail
+   turnid  ROUGE1-R       MRR  Exact match        F1
+0  1291_8  0.416667  0.166667          0.0  0.156863
+1    85_2  0.500000  0.500000          0.0  0.170213
+2    77_3  0.250000  0.142857          0.0  0.210526
+3  2688_5  0.529412  0.500000          0.0  0.142857
+ROUGE1-R fail, MRR fail, F1 success
+   turnid  ROUGE1-R  MRR  Exact match        F1
+0   431_3  0.714286  0.0          0.0  0.250000
+1  1941_2  0.750000  0.0          0.0  0.387097
+2   407_5  0.444444  0.0          0.0  0.444444
+3   454_4  0.666667  0.0          0.0  0.285714
+ROUGE1-R fail, MRR fail, F1 fail
+   turnid  ROUGE1-R  MRR  Exact match        F1
+0   450_6  0.538462  0.0          0.0  0.086957
+1   126_4  0.307692  0.0          0.0  0.048780
+2  1041_8  0.666667  0.0          0.0  0.083333
+3   870_6  0.846154  0.0          0.0  0.000000
