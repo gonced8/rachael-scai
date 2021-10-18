@@ -5,8 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-SAMPLE = False
-SHOW = True
+STATS = True
+SAMPLE = True
+SHOW = False
 SAVE = False
 
 plt.rcParams.update({"font.size": 16})
@@ -18,32 +19,22 @@ def split_df(df):
     return df1, df2
 
 
-def stats(
-    original,
-    rouge_gt,
-    rouge_lt,
-    rouge_gt_mrr_gt,
-    rouge_gt_mrr_lt,
-    rouge_lt_mrr_gt,
-    rouge_lt_mrr_lt,
-):
-    data = {
-        "Original": original,
-        "ROUGE1-R > Q3": rouge_gt,
-        "ROUGE1-R < Q1": rouge_lt,
-        "ROUGE1-R > Q3, MRR > Q3": rouge_gt_mrr_gt,
-        "ROUGE1-R > Q3, MRR < Q1": rouge_gt_mrr_lt,
-        "ROUGE1-R < Q1, MRR > Q3": rouge_lt_mrr_gt,
-        "ROUGE1-R < Q1, MRR < Q1": rouge_lt_mrr_lt,
-    }
-
+def stats(data):
     for k, v in data.items():
-        print(
-            f"{k}: {v['ROUGE1-R'].mean():.3f} {v['MRR'].mean():.3f} {v['F1'].mean():.3f} {v['Exact match'].mean():.3f}"
-        )
+        if k.count(",") == 2:
+            print(
+                f"{k}: {v['ROUGE1-R'].mean():.3f} {v['MRR'].mean():.3f} {v['F1'].mean():.3f} {v['Exact match'].mean():.3f} len={len(v)}"
+            )
 
 
-def get_success_fail(data, metric, threshold=None, quartile=2):
+def sample_from_each_case(data):
+    for k, v in data.items():
+        if k.count(",") == 2:
+            print(k)
+            print(v.sample(4, ignore_index=True))
+
+
+def get_success_fail(data, metric, threshold=None, quartile=4):
     if threshold is None:
         *fail, success = np.array_split(data.sort_values(by=metric), quartile)
         fail = pd.concat(fail)
@@ -70,17 +61,21 @@ def analyze(filename):
         splits["original"], ["ROUGE1-R", "MRR", "F1"]
     )
 
+    mrr_threshold = 1 / 10
     (
         splits["ROUGE1-R success, MRR success"],
         splits["ROUGE1-R success, MRR fail"],
         splits["ROUGE1-R fail, MRR success"],
         splits["ROUGE1-R fail, MRR fail"],
     ) = (
-        *get_success_fail(splits["ROUGE1-R success"], "MRR", 1 / 2),
-        *get_success_fail(splits["ROUGE1-R fail"], "MRR", 1 / 2),
+        *get_success_fail(splits["ROUGE1-R success"], "MRR", mrr_threshold),
+        *get_success_fail(splits["ROUGE1-R fail"], "MRR", mrr_threshold),
         # *get_success_fail(splits["ROUGE1-R success"], ["MRR", "ROUGE1-R", "F1"]),
         # *get_success_fail(splits["ROUGE1-R fail"], ["MRR", "ROUGE1-R", "F1"]),
     )
+
+    # F1 3rd quartile
+    f1_q3 = splits["original"]["F1"].quantile(0.75)
 
     (
         splits["ROUGE1-R success, MRR success, F1 success"],
@@ -92,16 +87,10 @@ def analyze(filename):
         splits["ROUGE1-R fail, MRR fail, F1 success"],
         splits["ROUGE1-R fail, MRR fail, F1 fail"],
     ) = (
-        *get_success_fail(
-            splits["ROUGE1-R success, MRR success"], ["F1", "MRR", "ROUGE1-R"]
-        ),
-        *get_success_fail(
-            splits["ROUGE1-R success, MRR fail"], ["F1", "MRR", "ROUGE1-R"]
-        ),
-        *get_success_fail(
-            splits["ROUGE1-R fail, MRR success"], ["F1", "MRR", "ROUGE1-R"]
-        ),
-        *get_success_fail(splits["ROUGE1-R fail, MRR fail"], ["F1", "MRR", "ROUGE1-R"]),
+        *get_success_fail(splits["ROUGE1-R success, MRR success"], "F1", f1_q3),
+        *get_success_fail(splits["ROUGE1-R success, MRR fail"], "F1", f1_q3),
+        *get_success_fail(splits["ROUGE1-R fail, MRR success"], "F1", f1_q3),
+        *get_success_fail(splits["ROUGE1-R fail, MRR fail"], "F1", f1_q3),
     )
 
     # Get means and medians
@@ -130,7 +119,7 @@ def analyze(filename):
         bins=20,
         weights=np.ones(len(splits["original"])) / len(splits["original"]),
         edgecolor="white",
-        color="#D69C4E",
+        color="#979797",
     )
 
     ax1.legend(["threshold (Q3)"])
@@ -142,10 +131,11 @@ def analyze(filename):
 
     length = len(splits["original"])
 
-    ax2.axvline(1 / 3, color="k", linestyle="dashed", linewidth=2)
+    ax2.axvline(mrr_threshold, color="k", linestyle="dashed", linewidth=2)
     ax2.hist(
         [splits["ROUGE1-R fail"]["MRR"], splits["ROUGE1-R success"]["MRR"]],
-        bins=[0, 0.1, 1 / 3, 0.9, 1],
+        # bins=[0, 0.1, 1 / 3, 0.9, 1],
+        bins=10,
         weights=[
             np.ones(len(splits["ROUGE1-R fail"])) / length,
             np.ones(len(splits["ROUGE1-R success"])) / length,
@@ -155,12 +145,9 @@ def analyze(filename):
         color=["#F2AD00", "#00A08A"],
     )
 
-    ax2.legend(["threshold (1/3)", "ROUGE1-R < Q3", "ROUGE1-R $\geq$ Q3"])
+    ax2.legend(["threshold (1/10)", "ROUGE1-R $x$", "ROUGE1-R $\checkmark$"])
     ax2.set_xlabel("MRR@10")
     ax2.set_ylabel("Relative Frequency")
-
-    # F1 3rd quartile
-    f1_q3 = splits["original"]["F1"].quantile(0.75)
 
     # Plot F1
     fig3, ax3 = plt.subplots()
@@ -171,16 +158,36 @@ def analyze(filename):
         bins=20,
         weights=np.ones(len(splits["original"])) / len(splits["original"]),
         edgecolor="white",
-        color="#D69C4E",
+        color="#979797",
     )
 
     ax3.legend(["threshold (Q3)"])
     ax3.set_xlabel("F1")
     ax3.set_ylabel("Relative Frequency")
 
-    # Plot F1 (ROUGE1-R success)
+    # Plot F1 (ROUGE1-R fail)
     fig4, ax4 = plt.subplots()
 
+    length = len(splits["ROUGE1-R fail"])
+
+    ax4.hist(
+        [
+            splits["ROUGE1-R fail, MRR fail"]["F1"],
+            splits["ROUGE1-R fail, MRR success"]["F1"],
+        ],
+        bins=10,
+        weights=[
+            np.ones(len(splits["ROUGE1-R fail, MRR fail"])) / length,
+            np.ones(len(splits["ROUGE1-R fail, MRR success"])) / length,
+        ],
+        stacked=True,
+        edgecolor="white",
+        color=["#d22d36", "#046C9A"],
+        align="left",
+        rwidth=0.5,
+    )
+
+    # Plot F1 (ROUGE1-R success)
     length = len(splits["ROUGE1-R success"])
 
     ax4.hist(
@@ -188,7 +195,7 @@ def analyze(filename):
             splits["ROUGE1-R success, MRR fail"]["F1"],
             splits["ROUGE1-R success, MRR success"]["F1"],
         ],
-        bins=20,
+        bins=10,
         weights=[
             np.ones(len(splits["ROUGE1-R success, MRR fail"])) / length,
             np.ones(len(splits["ROUGE1-R success, MRR success"])) / length,
@@ -196,50 +203,41 @@ def analyze(filename):
         stacked=True,
         edgecolor="white",
         color=["#F98400", "#5BBCD6"],
+        align="mid",
+        rwidth=0.5,
     )
-    ax4.legend(["MRR < 1/3", "MRR $\geq$ 1/3"])
+
+    ax4.legend(
+        [
+            "ROUGE1-R $x$\n          MRR $x$",
+            "ROUGE1-R $x$\n          MRR $\checkmark$",
+            "ROUGE1-R $\checkmark$\n          MRR $x$",
+            "ROUGE1-R $\checkmark$\n          MRR $\checkmark$",
+        ]
+    )
     ax4.set_xlabel("F1")
     ax4.set_ylabel("Relative Frequency")
 
-    # Plot F1 (ROUGE1-R fail)
-    fig5, ax5 = plt.subplots()
-
-    length = len(splits["ROUGE1-R fail"])
-
-    ax5.hist(
-        [
-            splits["ROUGE1-R fail, MRR fail"]["F1"],
-            splits["ROUGE1-R fail, MRR success"]["F1"],
-        ],
-        bins=20,
-        weights=[
-            np.ones(len(splits["ROUGE1-R fail, MRR fail"])) / length,
-            np.ones(len(splits["ROUGE1-R fail, MRR success"])) / length,
-        ],
-        stacked=True,
-        edgecolor="white",
-        color=["#F98400", "#5BBCD6"],
-    )
-    ax5.legend(["MRR < 1/3", "MRR $\geq$ 1/3"])
-    ax5.set_xlabel("F1")
-    ax5.set_ylabel("Relative Frequency")
+    # Print stats
+    if STATS:
+        stats(splits)
 
     # Sample samples of each case
     if SAMPLE:
-        sample_from_each_case(
-            rouge_gt_mrr_gt, rouge_gt_mrr_lt, rouge_lt_mrr_gt, rouge_lt_mrr_lt
-        )
+        sample_from_each_case(splits)
 
     if SHOW:
-        plt.tight_layout()
+        fig1.tight_layout()
+        fig2.tight_layout()
+        fig3.tight_layout()
+        fig4.tight_layout()
         plt.show()
 
     if SAVE:
         fig1.savefig("plots/rouge1-r.pdf", bbox_inches="tight")
         fig2.savefig("plots/mrr.pdf", bbox_inches="tight")
         fig3.savefig("plots/f1.pdf", bbox_inches="tight")
-        fig4.savefig("plots/f1_success.pdf", bbox_inches="tight")
-        fig5.savefig("plots/f1_fail.pdf", bbox_inches="tight")
+        fig4.savefig("plots/f1_hist.pdf", bbox_inches="tight")
 
 
 def main(filenames):

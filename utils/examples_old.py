@@ -10,6 +10,58 @@ from pyserini.search import SimpleSearcher
 from tqdm import tqdm
 from transformers import T5TokenizerFast, PegasusTokenizerFast
 
+examples_ids = {
+    "ROUGE1-R > Q3  MRR > Q3   F1 > Q3": [
+        "2061_3",
+        "2287_4",
+        "624_6",
+        "1047_2",
+        "1404_5",
+    ],
+    "ROUGE1-R > Q3  MRR > Q3   F1 < Q1": [
+        "556_7",
+        "1525_6",
+        "334_2",
+        "423_7",
+        "1743_2",
+    ],
+    "ROUGE1-R > Q3  MRR < Q1   F1 > Q3": [
+        "818_3",
+        "2678_5",
+        "2156_2",
+        "1036_2",
+        "1706_2",
+    ],
+    "ROUGE1-R > Q3  MRR < Q1   F1 < Q1": [
+        "2540_2",
+        "2746_4",
+        "430_2",
+        "605_6",
+        "190_2",
+    ],
+    "ROUGE1-R < Q1  MRR > Q3   F1 > Q3": [
+        "1064_4",
+        "1116_8",
+        "2308_3",
+        "1172_2",
+        "1301_5",
+    ],
+    "ROUGE1-R < Q1  MRR > Q3   F1 < Q1": ["990_7", "152_8", "211_8", "581_7", "1053_6"],
+    "ROUGE1-R < Q1  MRR < Q1   F1 > Q3": [
+        "1094_8",
+        "2704_3",
+        "2173_2",
+        "1428_4",
+        "1195_6",
+    ],
+    "ROUGE1-R < Q1  MRR < Q1   F1 < Q1": [
+        "850_2",
+        "241_6",
+        "1001_3",
+        "1285_2",
+        "1953_5",
+    ],
+}
 
 rewrite_model_name = "castorini/t5-base-canard"
 model_name = "google/pegasus-large"
