@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-STATS = True
-SAMPLE = True
-SHOW = False
+STATS = False
+SAMPLE = False
+SHOW = True
 SAVE = False
 
 plt.rcParams.update({"font.size": 16})
@@ -61,7 +61,7 @@ def analyze(filename):
         splits["original"], ["ROUGE1-R", "MRR", "F1"]
     )
 
-    mrr_threshold = 1 / 10
+    mrr_threshold = 1 / 4
     (
         splits["ROUGE1-R success, MRR success"],
         splits["ROUGE1-R success, MRR fail"],

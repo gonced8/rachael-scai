@@ -14,7 +14,7 @@ examples_ids = {
     "rewriting success  retrieval success   generation fail": ["1525_6"],
     "rewriting success  retrieval fail   generation success": ["1706_2"],
     "rewriting success  retrieval fail   generation fail": ["430_2"],
-    "rewriting fail  retrieval success   generation success": ["152_8"],
+    "rewriting fail  retrieval success   generation success": ["941_7"],
     "rewriting fail  retrieval success   generation fail": ["85_2"],
     "rewriting fail  retrieval fail   generation success": ["407_5"],
     "rewriting fail  retrieval fail   generation fail": ["1285_2"],
