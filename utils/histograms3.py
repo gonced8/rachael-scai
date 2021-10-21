@@ -137,15 +137,17 @@ def analyze(filename):
         # bins=[0, 0.1, 1 / 3, 0.9, 1],
         bins=10,
         weights=[
-            np.ones(len(splits["ROUGE1-R fail"])) / length,
-            np.ones(len(splits["ROUGE1-R success"])) / length,
+            # np.ones(len(splits["ROUGE1-R fail"])) / length,
+            # np.ones(len(splits["ROUGE1-R success"])) / length,
+            np.ones(len(splits["ROUGE1-R fail"])) / len(splits["ROUGE1-R fail"]),
+            np.ones(len(splits["ROUGE1-R success"])) / len(splits["ROUGE1-R success"]),
         ],
         stacked=True,
         edgecolor="white",
         color=["#F2AD00", "#00A08A"],
     )
 
-    ax2.legend(["threshold (1/10)", "ROUGE1-R $x$", "ROUGE1-R $\checkmark$"])
+    ax2.legend(["threshold (1/4)", "rewriting $x$", "rewriting $\checkmark$"])
     ax2.set_xlabel("MRR@10")
     ax2.set_ylabel("Relative Frequency")
 
@@ -177,8 +179,12 @@ def analyze(filename):
         ],
         bins=10,
         weights=[
-            np.ones(len(splits["ROUGE1-R fail, MRR fail"])) / length,
-            np.ones(len(splits["ROUGE1-R fail, MRR success"])) / length,
+            # np.ones(len(splits["ROUGE1-R fail, MRR fail"])) / length,
+            # np.ones(len(splits["ROUGE1-R fail, MRR success"])) / length,
+            np.ones(len(splits["ROUGE1-R fail, MRR fail"]))
+            / len(splits["ROUGE1-R fail, MRR fail"]),
+            np.ones(len(splits["ROUGE1-R fail, MRR success"]))
+            / len(splits["ROUGE1-R fail, MRR success"]),
         ],
         stacked=True,
         edgecolor="white",
@@ -197,8 +203,12 @@ def analyze(filename):
         ],
         bins=10,
         weights=[
-            np.ones(len(splits["ROUGE1-R success, MRR fail"])) / length,
-            np.ones(len(splits["ROUGE1-R success, MRR success"])) / length,
+            # np.ones(len(splits["ROUGE1-R success, MRR fail"])) / length,
+            # np.ones(len(splits["ROUGE1-R success, MRR success"])) / length,
+            np.ones(len(splits["ROUGE1-R success, MRR fail"]))
+            / len(splits["ROUGE1-R success, MRR fail"]),
+            np.ones(len(splits["ROUGE1-R success, MRR success"]))
+            / len(splits["ROUGE1-R success, MRR success"]),
         ],
         stacked=True,
         edgecolor="white",
@@ -209,10 +219,10 @@ def analyze(filename):
 
     ax4.legend(
         [
-            "ROUGE1-R $x$\n          MRR $x$",
-            "ROUGE1-R $x$\n          MRR $\checkmark$",
-            "ROUGE1-R $\checkmark$\n          MRR $x$",
-            "ROUGE1-R $\checkmark$\n          MRR $\checkmark$",
+            "rewriting $x$\n retrieval $x$",
+            "rewriting $x$\n retrieval $\checkmark$",
+            "rewriting $\checkmark$\n retrieval $x$",
+            "rewriting $\checkmark$\n retrieval $\checkmark$",
         ]
     )
     ax4.set_xlabel("F1")
