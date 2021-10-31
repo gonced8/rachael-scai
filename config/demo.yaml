@@ -1,0 +1,17 @@
+# Model
+model_name: google/pegasus-large
+rewrite_model_name: castorini/t5-base-canard
+max_input_length: 1024
+max_output_length: 256
+rewrite_max_input_length: 512
+rewrite_max_output_length: 512
+from_checkpoint: checkpoints/version_7/checkpoints/best.ckpt 
+
+# Data
+passages: data/qrecc/passages-index-anserini
+max_history: 1
+rewrite_max_history: 0
+max_candidates: 10
+#max_workers: 24
+#batch_size: 3
+no_repeat_ngram_size: 10
