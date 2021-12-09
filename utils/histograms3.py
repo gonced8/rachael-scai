@@ -7,8 +7,8 @@ import pandas as pd
 
 STATS = False
 SAMPLE = False
-SHOW = True
-SAVE = False
+SHOW = False
+SAVE = True
 
 plt.rcParams.update({"font.size": 16})
 plt.rcParams["font.family"] = "serif"
@@ -111,7 +111,7 @@ def analyze(filename):
     rouge_q3 = splits["original"]["ROUGE1-R"].quantile(0.75)
 
     # Plot ROUGE1-R
-    fig1, ax1 = plt.subplots()
+    fig1, ax1 = plt.subplots(figsize=(7, 3.5))
 
     ax1.axvline(rouge_q3, color="k", linestyle="dashed", linewidth=2)
     ax1.hist(
@@ -127,7 +127,7 @@ def analyze(filename):
     ax1.set_ylabel("Relative Frequency")
 
     # Plot MRR
-    fig2, ax2 = plt.subplots()
+    fig2, ax2 = plt.subplots(figsize=(7, 3.5))
 
     length = len(splits["original"])
 
@@ -152,7 +152,7 @@ def analyze(filename):
     ax2.set_ylabel("Relative Frequency")
 
     # Plot F1
-    fig3, ax3 = plt.subplots()
+    fig3, ax3 = plt.subplots(figsize=(7, 3.5))
 
     ax3.axvline(f1_q3, color="k", linestyle="dashed", linewidth=2)
     ax3.hist(
@@ -168,7 +168,7 @@ def analyze(filename):
     ax3.set_ylabel("Relative Frequency")
 
     # Plot F1 (ROUGE1-R fail)
-    fig4, ax4 = plt.subplots()
+    fig4, ax4 = plt.subplots(figsize=(7, 3.5))
 
     length = len(splits["ROUGE1-R fail"])
 
@@ -219,10 +219,10 @@ def analyze(filename):
 
     ax4.legend(
         [
-            "rewriting $x$\n retrieval $x$",
-            "rewriting $x$\n retrieval $\checkmark$",
-            "rewriting $\checkmark$\n retrieval $x$",
-            "rewriting $\checkmark$\n retrieval $\checkmark$",
+            "rewriting $x$, retrieval $x$",
+            "rewriting $x$, retrieval $\checkmark$",
+            "rewriting $\checkmark$, retrieval $x$",
+            "rewriting $\checkmark$, retrieval $\checkmark$",
         ]
     )
     ax4.set_xlabel("F1")
