@@ -1,6 +1,8 @@
 # rachael-scai
 Participation of group Rachael for SCAI 2021. 
 
+Fine-tuned Pegasus model can be found in Hugging Face: [gonced8/pegasus-conversational-qa](https://huggingface.co/gonced8/pegasus-conversational-qa)
+
 Gonçalo Raposo
 
 
