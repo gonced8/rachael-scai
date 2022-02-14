@@ -145,7 +145,10 @@ def compute_answer(model, history):
     return model_rewrite, text_passages, model_answer
 
 
-st.title("Ask Me Anything - Conversational QA")
+st.title('Ask Me "Anything"!')
+st.header("Conversational Question Answering")
+
+st.subheader("http://ama.goncaloraposo.com")
 
 model = init()
 
@@ -172,7 +175,7 @@ if compute:
 
     for i, sentence in enumerate(history):
         if sentence.startswith("Q") and "=>" in sentence:
-            history[i] = "Q: " + sentence[sentence.index("=>") + 2 :].lstrip()
+            history[i] = "Q: " + sentence.split("=>")[-1].strip()
 
     history = [re.sub(r"^.*:\s?", "", sentence) for sentence in history]
     print(history)
