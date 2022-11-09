@@ -148,7 +148,7 @@ def compute_answer(model, history):
 st.title('Ask Me "Anything"!')
 st.header("Conversational Question Answering")
 
-st.subheader("http://ama.goncaloraposo.com")
+st.subheader("https://ama.goncaloraposo.com")
 
 model = init()
 
